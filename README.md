@@ -23,7 +23,7 @@ reports real experiments with every identifying detail removed and the results m
 
 ## Quick look
 
-* Open the [project page](docs/index.html) for an overview of the method and both case studies (served by GitHub Pages from `docs/`; see below).
+* Open the [project page](https://n2tp1311.github.io/AutoUpliftMultiArms/) for an overview of the method and both case studies.
 * Read [`case_study_beer/case_study_business.pdf`](case_study_beer/case_study_business.pdf) for the decision and the money, and [`case_study_beer/case_study_technical.pdf`](case_study_beer/case_study_technical.pdf) for the full method and every check.
 * Open [`case_study_beer/03_case_study_beer.ipynb`](case_study_beer/03_case_study_beer.ipynb) on GitHub to see the code steps and their outputs.
 * Read [`method/README.md`](method/README.md) for how the approach works.
@@ -38,14 +38,3 @@ cd case_study_beer
 pytest                                   # checks the generator against data_rules.md
 python -m data_gen.generate --out data/  # writes the panel, the ground truth and metadata as CSV / JSON
 ```
-
-## Project page
-
-`docs/index.html` is a single self-contained page (no build step). To publish it:
-in the repository on GitHub, open **Settings → Pages**, choose **Deploy from a branch**, branch `main`,
-folder `/docs`. The page then appears at `https://<owner>.github.io/<repository>/`.
-A GitHub Pages site is public, even when the repository is private.
-
-## License
-
-TODO(owner): no license chosen yet. Until one is added, all rights are reserved.
