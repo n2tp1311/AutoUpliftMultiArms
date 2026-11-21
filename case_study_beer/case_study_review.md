@@ -69,8 +69,9 @@ These changed what a reader would conclude, not just the wording.
 
 These were raised and deliberately left as they are.
 
-- **Library plot cosmetics.** Long decimals in some plot titles and an overlapping subtitle. These are logged in
-  `library/docs/known_issues.md` and were not changed, because the library is out of scope for this release.
+- **Library plot cosmetics.** Long decimals in plot titles and an overlapping subtitle in the share sweep. The
+  library was not changed, because it is out of scope for this release; the notebook works around both (whole
+  VND in titles, titles wrapped to their panel width).
 - **Repeated weak-overlap warnings.** These are expected: modern trade never received display kits or rep
   visits. They are explained in notebook Part 5.
 - **The notebook cannot be rerun without the private library.** It is published executed.

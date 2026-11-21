@@ -404,6 +404,34 @@ def money_labels(fig) -> None:
         fig._suptitle.set_text(pat.sub(fmt, fig._suptitle.get_text()))
 
 
+def wrap_titles(fig) -> None:
+    """Wrap each panel title to the width of its panel, so a long subtitle does not run into the next
+    panel. The library writes one line per title part; long parts (for example the selected shares of a
+    sweep) can be wider than the panel."""
+    import textwrap
+    fig.canvas.draw()
+    for ax in fig.axes:
+        width_px = ax.get_window_extent().width
+        for loc in ("left", "center", "right"):
+            text = ax.get_title(loc=loc)
+            if not text:
+                continue
+            size = ax.title.get_fontsize() if loc == "center" else getattr(ax, f"_{loc}_title").get_fontsize()
+            n_chars = max(20, int(width_px / (size * fig.dpi / 72 * 0.55)))
+            lines = [w for line in text.split("\n") for w in (textwrap.wrap(line, n_chars) or [""])]
+            ax.set_title("\n".join(lines), loc=loc)
+    # a taller title can now reach the figure title: move the figure title above the highest panel title
+    sup = getattr(fig, "_suptitle", None)
+    if sup is not None:
+        fig.canvas.draw()
+        inv = fig.transFigure.inverted()
+        tops = [inv.transform((0, t.get_window_extent().y1))[1]
+                for ax in fig.axes for t in (ax.title, ax._left_title, ax._right_title) if t.get_text()]
+        if tops:
+            sup.set_y(max(tops) + 0.02)
+            sup.set_verticalalignment("bottom")
+
+
 def zoom_to_points(fig, pad: float = 0.15) -> None:
     """Limit each panel to the range of its plotted points and their error bars (same range on x and y,
     so the diagonal stays the 45-degree line). Used where a fitted line spans a much wider range than
