@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  data-generator:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11"]
+    defaults:
+      run:
+        working-directory: case_study_beer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install numpy==1.26.4 pandas==2.2.2 pytest==8.2.2
+      - name: Data generator tests
+        run: pytest -q
+      - name: Generate the default data
+        run: python -m data_gen.generate --out data/
