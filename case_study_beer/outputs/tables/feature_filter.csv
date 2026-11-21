@@ -1,0 +1,23 @@
+feature,type,status,reason,null_rate,top_value_share,max_assoc,max_assoc_with
+region,categorical,removed,"cramers_v('province', 'region')=1.000 > 0.95  [kept 'province': target_assoc=0.001 > 'region': target_assoc=0.001]",0.0,0.3022,0.9999,province
+province,categorical,kept,"passed: null rate 0.000 <= 0.8; top value share 6.33% <= 0.99; max cramers_v 1.000 with region (threshold 0.95); cramers_v 1.000 with region, which was removed",0.0,0.0633,0.9999,region
+channel,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 32.31% <= 0.99; max cramers_v 0.278 with outlet_size (threshold 0.95),0.0,0.3231,0.2781,outlet_size
+outlet_size,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 46.09% <= 0.99; max cramers_v 0.402 with credit_days (threshold 0.95),0.0,0.4609,0.402,credit_days
+n_coolers,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 48.31% <= 0.99; max cramers_v 0.359 with outlet_size (threshold 0.95),0.0,0.4831,0.3592,outlet_size
+seating_capacity,numeric,kept,passed: null rate 0.608 <= 0.8; top value share 3.22% <= 0.99; max sym_uncertainty 0.218 with channel (threshold 0.95),0.6078,0.0322,0.2178,channel
+vol_last_1m,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 18.02% <= 0.99; max corr 0.892 with vol_avg_3m (threshold 0.95),0.0,0.1802,0.8916,vol_avg_3m
+vol_avg_3m,numeric,kept,"passed: null rate 0.000 <= 0.8; top value share 2.91% <= 0.99; max corr 1.000 with vol_avg_3m_reported (threshold 0.95); corr 1.000 with vol_avg_3m_reported, which was removed",0.0,0.0291,0.9997,vol_avg_3m_reported
+vol_trend_3m,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 5.30% <= 0.99; max corr 0.346 with days_since_last_order (threshold 0.95),0.0,0.053,0.346,days_since_last_order
+days_since_last_order,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 2.83% <= 0.99; max corr 0.346 with vol_trend_3m (threshold 0.95),0.0,0.0283,0.346,vol_trend_3m
+order_frequency_3m,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 11.08% <= 0.99; max corr 0.926 with vol_avg_3m (threshold 0.95),0.0,0.1108,0.926,vol_avg_3m
+brand_share_est,numeric,kept,passed: null rate 0.082 <= 0.8; top value share 2.25% <= 0.99; max corr 0.013 with vol_avg_3m_reported (threshold 0.95),0.0821,0.0225,0.0127,vol_avg_3m_reported
+competitor_promo_active,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 77.53% <= 0.99; max cramers_v 0.134 with month_index (threshold 0.95),0.0,0.7753,0.1337,month_index
+tet_month,categorical,kept,force_keep; passed: null rate 0.000 <= 0.8; top value share 83.33% <= 0.99; max cramers_v 1.000 with month_index (threshold 0.95),0.0,0.8333,1.0,month_index
+rainy_season,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 71.68% <= 0.99; max cramers_v 0.889 with month_index (threshold 0.95),0.0,0.7168,0.8889,month_index
+avg_temperature,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 1.60% <= 0.99; max sym_uncertainty 0.209 with province (threshold 0.95),0.0,0.016,0.2089,province
+distance_to_distributor_km,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 1.14% <= 0.99; max corr 0.069 with days_since_last_order (threshold 0.95),0.0,0.0114,0.0685,days_since_last_order
+credit_days,categorical,kept,passed: null rate 0.000 <= 0.8; top value share 32.01% <= 0.99; max cramers_v 0.402 with outlet_size (threshold 0.95),0.0,0.3201,0.402,outlet_size
+legacy_program_flag,categorical,removed,near-constant (value 0 in 99.66% of non-missing rows > near_constant_threshold 0.99),0.0,0.9966,,
+vol_avg_3m_reported,numeric,removed,"corr('vol_avg_3m', 'vol_avg_3m_reported')=1.000 > 0.95  [kept 'vol_avg_3m': target_assoc=0.768 > 'vol_avg_3m_reported': target_assoc=0.768]",0.0,0.0291,0.9997,vol_avg_3m
+noise_feature,numeric,kept,passed: null rate 0.000 <= 0.8; top value share 0.07% <= 0.99; max corr 0.004 with avg_temperature (threshold 0.95),0.0,0.0007,0.0044,avg_temperature
+month_index,categorical,kept,force_keep; passed: null rate 0.000 <= 0.8; top value share 16.67% <= 0.99; max cramers_v 1.000 with tet_month (threshold 0.95),0.0,0.1667,1.0,tet_month

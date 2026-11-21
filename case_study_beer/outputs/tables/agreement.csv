@@ -1,0 +1,7 @@
+channel,rows,agreement_%,bau_agreement_%
+modern_trade,3480,52.4,30.1
+off_trade_grocery,11388,65.3,32.1
+off_trade_minimart,6486,72.4,35.6
+on_trade_bar,6864,76.6,32.3
+on_trade_restaurant,7782,71.8,36.1
+all rows,36000,68.9,33.4

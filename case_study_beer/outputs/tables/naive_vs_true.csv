@@ -1,0 +1,5 @@
+arm,label,naive_difference_all_rows,difference_trade_test_rows,true_average_effect
+1,zalo_message,0.17,-0.06,0.47
+2,price_promo,0.25,2.5,3.55
+3,display_kit,-13.86,4.65,4.38
+4,rep_visit,-3.3,5.81,6.23

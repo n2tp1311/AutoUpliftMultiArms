@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="aum: multi-arm uplift with cost and capacity. Method overview, a full-workflow demo on synthetic beer trade data, and an exploratory masked study of loan reminder experiments.">
+<title>aum Multi-Arm Uplift</title>
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column with wide bands for the pipeline and the two case studies; charts drawn in SVG from tokens */
+:root{
+  --bg:#F6F8FA; --surface:#FFFFFF; --ink:#16212E; --muted:#5A6878; --rule:#D5DDE6;
+  --accent:#1F4E79; --accent-soft:#E3ECF5; --pos:#1F6F5C; --neg:#B4540A; --neutral:#8794A3;
+  --code-bg:#EEF2F6;
+  --f-display:"Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F151C; --surface:#161F29; --ink:#E4EAF1; --muted:#97A5B5; --rule:#2A3644;
+  --accent:#7FB0DE; --accent-soft:#1C2A39; --pos:#5CC0A3; --neg:#E89A5A; --neutral:#7C8A9A;
+  --code-bg:#1A2430; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0F151C; --surface:#161F29; --ink:#E4EAF1; --muted:#97A5B5; --rule:#2A3644;
+  --accent:#7FB0DE; --accent-soft:#1C2A39; --pos:#5CC0A3; --neg:#E89A5A; --neutral:#7C8A9A;
+  --code-bg:#1A2430; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1040px;margin:0 auto}
+.col{max-width:68ch}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h2{font-size:clamp(1.6rem,3.2vw,2.1rem);font-weight:600}
+h3{font-size:1.15rem;font-weight:600}
+p{margin:0}
+a{color:var(--accent)}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{padding-block:56px;border-top:1px solid var(--rule);display:grid;gap:20px}
+.stack{display:grid;gap:14px}
+
+/* hero */
+header.hero{padding-block:56px 48px;display:grid;gap:22px}
+.hero h1{font-size:clamp(2.1rem,5.4vw,3.6rem);font-weight:700;letter-spacing:-.01em;max-width:18ch}
+.hero .lede{font-size:1.15rem;color:var(--muted);max-width:60ch}
+.formula{font-family:var(--f-mono);font-size:clamp(.95rem,2.4vw,1.2rem);background:var(--surface);border:1px solid var(--rule);
+  border-radius:6px;padding:14px 18px;width:fit-content;max-width:100%;overflow-x:auto;white-space:nowrap}
+.formula b{color:var(--accent);font-weight:500}
+.formula small{display:block;font-family:var(--f-body);color:var(--muted);font-size:.8rem;white-space:normal;margin-top:4px}
+.jump{display:flex;flex-wrap:wrap;gap:10px}
+.jump a{font-size:.9rem;text-decoration:none;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:6px 12px;border-radius:999px}
+.jump a:hover,.jump a:focus-visible{border-color:var(--accent);color:var(--accent)}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:18px;align-items:start}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:s}
+.steps button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:baseline;width:100%;box-sizing:border-box;padding:8px 10px;border-radius:5px;font-size:.95rem}
+.steps button::before{counter-increment:s;content:counter(s,decimal-leading-zero);font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+.steps button:hover{background:var(--accent-soft)}
+.steps button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.steps button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:20px;display:grid;gap:12px;min-width:0}
+.panel pre{margin:0;background:var(--code-bg);border-radius:4px;padding:14px;overflow-x:auto;font-family:var(--f-mono);font-size:.82rem;line-height:1.55}
+.panel p{color:var(--ink)}
+.panel .why{color:var(--muted);font-size:.92rem}
+
+/* choices */
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.choices div{background:var(--surface);padding:16px 18px;display:grid;gap:6px;align-content:start}
+.choices b{font-family:var(--f-display);font-weight:600}
+.choices span{color:var(--muted);font-size:.92rem}
+
+/* case cards */
+.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.case{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:22px;display:grid;gap:12px;align-content:start;min-width:0}
+.tag{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px;width:fit-content}
+.tag.syn{background:var(--accent-soft);color:var(--accent)}
+.tag.real{background:color-mix(in srgb,var(--pos) 14%,transparent);color:var(--pos)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border-block:1px solid var(--rule);padding-block:12px}
+.facts div{display:grid}
+.facts b{font-family:var(--f-display);font-size:1.35rem;font-variant-numeric:tabular-nums}
+.facts span{font-size:.78rem;color:var(--muted)}
+
+/* detail blocks */
+.detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+.findings{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.findings li{display:grid;gap:2px;padding-left:14px;border-left:2px solid var(--rule)}
+.findings li b{font-weight:600}
+.findings li span{color:var(--muted);font-size:.94rem}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:600;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+td.n{text-align:right}
+.chart{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:16px;display:grid;gap:10px;min-width:0}
+.chart svg{width:100%;height:auto;display:block}
+.chart .cap{font-size:.82rem;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-size:.82rem;border:1px solid var(--rule);background:var(--bg);color:var(--ink);padding:5px 10px;border-radius:4px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pill{display:inline-block;white-space:nowrap;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:999px}
+.pill.out{background:color-mix(in srgb,var(--neg) 15%,transparent);color:var(--neg)}
+.pill.keep{background:color-mix(in srgb,var(--pos) 15%,transparent);color:var(--pos)}
+.pill.maybe{background:var(--accent-soft);color:var(--accent)}
+table.prune td[rowspan]{font-weight:600;border-right:1px solid var(--rule)}
+.note{font-size:.88rem;color:var(--muted);border-left:2px solid var(--neg);padding-left:12px}
+
+/* lessons */
+.lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:22px}
+.lessons div{display:grid;gap:6px;align-content:start}
+.lessons b{font-family:var(--f-display);font-size:1.05rem}
+.lessons span{color:var(--muted);font-size:.95rem}
+footer{padding-block:32px 0;border-top:1px solid var(--rule);color:var(--muted);font-size:.88rem;display:grid;gap:8px}
+
+@media (max-width:760px){
+  .pipe,.detail{grid-template-columns:minmax(0,1fr)}
+  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:no-preference){.panel{transition:opacity .15s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="hero">
+  <span class="eyebrow">aum · multi-arm uplift with cost and capacity</span>
+  <h1>Which action, for which customer, within which limits?</h1>
+  <p class="lede">aum estimates the effect of every possible action on every unit, turns those effects into one decision per unit under real costs and capacities, and then checks honestly whether the decisions beat simple rules. Two case studies show it at work. The beer study runs the whole library workflow end to end on simulated data, where the true answer is known. The loan reminder study uses it to explore real experiments: which treatment wins, in which segments, and which treatments can be dropped so the next pilot tests only real contenders.</p>
+  <div class="formula">value<sub>k</sub>(x) = <b>V</b> · τ<sub>k</sub>(x) − <b>c</b><sub>k</sub>
+    <small>Net value of arm k for a unit with features x: money per unit of outcome times the arm's estimated effect, minus the arm's cost. Control has value 0.</small></div>
+  <nav class="jump" aria-label="Sections">
+    <a href="#method">How it works</a><a href="#choices">Design choices</a><a href="#beer">Beer trade case</a><a href="#loans">Loan reminders case</a><a href="#lessons">Lessons</a>
+  </nav>
+</header>
+
+<section id="method">
+  <div class="stack col">
+    <span class="eyebrow">How it works</span>
+    <h2>From historical rows to one decision per unit</h2>
+    <p>The pipeline runs in this order. Select a step to see what it does, in the same pseudocode the published method note uses.</p>
+  </div>
+  <div class="pipe">
+    <ol class="steps" role="tablist" aria-label="Pipeline steps" id="steps"></ol>
+    <div class="panel" role="tabpanel" id="panel" aria-live="polite"></div>
+  </div>
+</section>
+
+<section id="choices">
+  <div class="stack col">
+    <span class="eyebrow">Design choices</span>
+    <h2>Built to say no when the evidence is thin</h2>
+  </div>
+  <div class="choices">
+    <div><b>One effect model per arm, shared nuisances</b><span>Well-understood binary meta-learners (DR, X, S, T, R), each arm inspectable alone, all learners compared on identical folds.</span></div>
+    <div><b>Doubly robust scores everywhere</b><span>Learning, evaluation, calibration and checks use the same scores, unbiased if either the outcome or the propensity model is right.</span></div>
+    <div><b>A referee grades the model</b><span>Policies are valued with scores fitted on held-out units only. A model graded on its own predictions always looks good.</span></div>
+    <div><b>Splits by unit, not by row</b><span>The same outlet or customer appears every cycle; row-level splits leak.</span></div>
+    <div><b>No evidence, no decision</b><span>An arm with a propensity below 0.02 for a unit is never chosen for it.</span></div>
+    <div><b>Simplest tied candidate wins</b><span>Among tuning candidates statistically tied with the best, the simplest is chosen. The top score among many noisy ones is partly luck.</span></div>
+  </div>
+</section>
+
+<section id="cases-intro">
+  <div class="stack col">
+    <span class="eyebrow">Case studies</span>
+    <h2>Two jobs for the same method</h2>
+    <p>The beer study is a demo of the full workflow: data, tuning, effects, policy under costs and capacity, evaluation, robustness, interpretation and a pilot plan. The loan reminder study is exploration: find the superior treatment, find the segments where it is superior, and remove any treatment that loses to another in every segment, so the upcoming pilot stays clean.</p>
+  </div>
+  <div class="cases">
+    <a class="case" href="#beer" style="text-decoration:none;color:inherit">
+      <span class="tag syn">Full workflow demo · synthetic data</span>
+      <h3>Which trade action for which beer outlet?</h3>
+      <p style="color:var(--muted)">Every step of the library on 20,000 outlets over 6 months: 5 actions with costs from 2,000 to 400,000 VND, regional caps on display kits and rep visits, and an answer key to check against.</p>
+      <div class="facts"><div><b>69%</b><span>right action, model</span></div><div><b>33%</b><span>right action, current rule</span></div><div><b>5</b><span>arms incl. control</span></div></div>
+    </a>
+    <a class="case" href="#loans" style="text-decoration:none;color:inherit">
+      <span class="tag real">Exploration · real experiments, masked</span>
+      <h3>Payment reminders before the due date</h3>
+      <p style="color:var(--muted)">Two randomized experiments at a consumer finance lender, 9 reminder plans in all. Which plan wins, for which segments, and which plans can leave the next pilot?</p>
+      <div class="facts"><div><b>9 → 3</b><span>plans tested → kept for the pilot</span></div><div><b>+1.0 pp</b><span>best plan, first instalment</span></div><div><b>+1.4 pp</b><span>best plan, later instalments</span></div></div>
+    </a>
+  </div>
+</section>
+
+<section id="beer">
+  <div class="stack col">
+    <span class="tag syn">Full workflow demo · synthetic data · illustrative numbers</span>
+    <h2>Beer trade actions</h2>
+    <p>This study walks through every step of the library above, in order, and publishes the executed notebook and two reports. Each month a brand gives each outlet one action. The outcome is cases ordered; money is gross margin of the extra cases (60,000 VND per case) minus the action's cost. Because the data is simulated, every recommendation can be checked against the true best action.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Arm</th><th>What it is</th><th class="n">Cost per outlet-month (VND)</th><th>Limit</th></tr></thead>
+      <tbody>
+        <tr><td>Control</td><td>No action</td><td class="n">0</td><td>none</td></tr>
+        <tr><td>App message</td><td>Digital reminder with a link to order</td><td class="n">2,000</td><td>none</td></tr>
+        <tr><td>Price promo</td><td>Buy 10 cases, get 1 free</td><td class="n">120,000</td><td>none</td></tr>
+        <tr><td>Display kit</td><td>Cooler sticker, standee, menu boards</td><td class="n">400,000</td><td>6% of a region's outlets per month</td></tr>
+        <tr><td>Rep visit</td><td>Merchandising and order taking</td><td class="n">150,000</td><td>8% of a region's outlets per month</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="detail">
+    <ul class="findings">
+      <li><b>The model picks the truly best action twice as often as the current rule.</b><span>69% of outlet-months against 33%, on 6,000 outlets it never saw (without limits). Checkable only because the data is simulated.</span></li>
+      <li><b>The limits are the largest lever.</b><span>Without caps the model would earn about 110,000 VND more per outlet-month than within them, about 2,200 million VND per month across all outlets.</span></li>
+      <li><b>Within today's limits the data cannot yet show a gain.</b><span>The simulation knows the capped model earns 58,987 VND more per outlet-month than the current rule. A real project would only see the estimate: 6,070 VND, range −63,936 to 72,631.</span></li>
+      <li><b>So the recommendation is a pilot, with its power stated.</b><span>3 months, random halves of about 9,000 outlets. It detects the simulated gain only about 60 times in 100, so the decision uses a switch rule set in advance.</span></li>
+    </ul>
+    <div class="chart">
+      <div class="eyebrow">Right action chosen, by outlet type (%)</div>
+      <svg id="agree" viewBox="0 0 420 230" role="img" aria-label="Share of outlet-months where the chosen action is the true best, model against current rule, by outlet type"></svg>
+      <p class="cap">Share of test outlet-months where the chosen arm equals the true best arm, without limits. Model in blue, current rule in grey.</p>
+    </div>
+  </div>
+</section>
+
+<section id="loans">
+  <div class="stack col">
+    <span class="tag real">Exploration · real experiments · masked results</span>
+    <h2>Payment reminders before the due date</h2>
+    <p>A lender tested reminder plans in two randomized experiments. The goal was not a targeting model but a clean shortlist for the next pilot: find the superior plan, find the segments where it is superior, and remove any plan that loses to another in every segment. Each experiment was modelled twice: a full version with every plan, then a reduced version without the dominated ones. The target is an instalment paid on or before the due date.</p>
+    <p class="note">The company, country, currency, dates, internal names, customer counts and absolute payment rates are removed. Arms, features and products have generic names, and effects are rounded to 0.1 percentage points.</p>
+  </div>
+  <div class="detail">
+    <div class="chart">
+      <div class="seg" id="vsel" role="group" aria-label="Model version"></div>
+      <svg id="forest" viewBox="0 0 420 210" role="img" aria-label="Observed effect of each arm against control with 95% intervals"></svg>
+      <p class="cap" id="fcap"></p>
+    </div>
+    <ul class="findings">
+      <li><b>First instalment: one plan wins everywhere.</b><span>Late schedule with a tracked message first beats every other arm in every product and customer group: +1.0 pp over the early-schedule control, +0.7 pp over the direct-call version.</span></li>
+      <li><b>Later instalments: the second reminder is what matters.</b><span>Two reminders add +1.3 to +1.4 pp over one. Email adds nothing once there are two.</span></li>
+      <li><b>Personalising arms adds almost nothing here.</b><span>In all four versions the model's per-customer policy lands within 0.1 pp of giving everyone the best single arm, and most tuning candidates are statistically tied.</span></li>
+      <li><b>Calibration decides which segment differences to believe.</b><span>First-instalment models draw smooth effect curves but cannot rank customers (slopes include 0). Later-instalment models rank well (slopes 0.6 to 0.9), so their segment splits can guide the pilot.</span></li>
+    </ul>
+  </div>
+  <div class="stack col">
+    <h3>Which plans stay for the pilot</h3>
+    <p>A plan is removed when another plan beats it in every segment looked at: every product and every customer group along each selected feature.</p>
+  </div>
+  <div class="tbl">
+    <table class="prune">
+      <thead><tr><th>Experiment</th><th>Plan</th><th>Evidence across segments</th><th>Pilot</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="4">First instalment</td><td>Early-Call</td><td>Below control in every product (about −0.1 pp)</td><td><span class="pill out">Remove</span></td></tr>
+        <tr><td>Early-Msg</td><td>Below both late-schedule plans in every product</td><td><span class="pill out">Remove</span></td></tr>
+        <tr><td>Late-Call</td><td>Below Late-Msg in every product and customer group (+0.8 to +1.1 pp for Late-Msg)</td><td><span class="pill out">Remove</span></td></tr>
+        <tr><td>Late-Msg</td><td>Best in every segment; no group where another plan does better</td><td><span class="pill keep">Keep, for all</span></td></tr>
+        <tr><td rowspan="5">Second instalment onward</td><td>1T</td><td>Below 1T+Email in every product</td><td><span class="pill out">Remove</span></td></tr>
+        <tr><td>1T+Email</td><td>1.4 to 1.8 pp below every two-reminder plan in every product</td><td><span class="pill out">Remove</span></td></tr>
+        <tr><td>2T-Early+Email</td><td>Matched or beaten by 2T-Late in almost every segment; never clearly ahead of it</td><td><span class="pill maybe">Candidate to remove</span></td></tr>
+        <tr><td>2T-Early</td><td>Ahead for products P2 and P4 and for customers with recent lateness; behind for contracts on the call list (−0.8 pp)</td><td><span class="pill keep">Keep, for its segments</span></td></tr>
+        <tr><td>2T-Late</td><td>Positive against 2T-Early+Email for call-list and non-call-list contracts and at every age</td><td><span class="pill keep">Keep, default</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="lessons">
+  <div class="stack col">
+    <span class="eyebrow">Across both studies</span>
+    <h2>What the method is really for</h2>
+  </div>
+  <div class="lessons">
+    <div><b>Beat the best single arm, not only control.</b><span>In three of the four lending versions the model beats control by 0.7 to 1.4 pp, which sounds like a model win. Against the best single arm the gain is zero. The baseline you compare with decides the story.</span></div>
+    <div><b>Say how much a test can detect.</b><span>The beer pilot would miss a real gain 4 times in 10. Stating that up front changes how the result is read.</span></div>
+    <div><b>Constraints often matter more than the model.</b><span>In the beer case the caps on display kits and rep visits cost more than any modelling choice. Valuing them gives the business a case for capacity.</span></div>
+    <div><b>Prune before you pilot.</b><span>Effects by segment show which treatments lose everywhere. Dropping them leaves a pilot with fewer arms, more customers per arm and a sharper question: 9 plans became 3 in the lending study.</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>The method is described in words, formulas and pseudocode in <code>method/README.md</code>. The implementation, a Python package, is private. The beer study publishes its data generator, an executed notebook and two PDF reports; the lending study publishes a masked report and the numbers behind its figures.</p>
+  <p>All beer figures are synthetic. Lending figures are real experiment results, masked.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+const steps=[
+ ["Feature filter","Drop unusable features before modelling, and record a reason for each one.",
+`for each candidate feature:
+    drop if share missing > null_threshold
+    drop if top value share > near_constant_threshold
+for each pair with association > correlation_threshold:
+    keep the one more associated with the target`,
+ "Thresholds are not fixed by hand: the tuner searches them together with the model."],
+ ["Tuning","Choose the learner and model complexity on units the candidate was not fitted on.",
+`split training units into tune-train and validation (whole units)
+referee = DR scores cross-fitted on validation rows only
+for each candidate:
+    fit on tune-train; choose an arm per validation row
+    score = mean( V * gamma[row, chosen] - c[chosen] )
+winner = simplest candidate tied with the best`,
+ "Candidates never grade themselves. Grid, random or TPE search can generate them."],
+ ["Nuisance models","Propensities e_k(x) and outcomes mu_k(x), cross-fitted once and shared by every learner.",
+`split units into F folds
+for each fold f:
+    train on the other folds:
+        propensity: one multinomial classifier, all arms
+        outcomes:   one model per arm, on that arm's rows
+    predict e_k(x), mu_k(x) for fold f`,
+ "Every row's predictions come from models that never saw it."],
+ ["Doubly robust scores","One score per row and arm, used for learning, evaluation and checks.",
+`gamma_k = mu_k + 1[arm = k] * (y - mu_k) / max(e_k, 0.01)`,
+ "The mean of gamma_k is unbiased for the outcome under arm k if either model is right."],
+ ["Effect per arm","Each arm k gets its own effect model against control.",
+`DR: regress gamma_k - gamma_0 on x
+T:  mu_k(x) - mu_0(x)
+S:  one model on [x, arm], arm switched on and off
+X:  impute effects per side, blend with e_k / (e_0 + e_k)
+R:  residual-on-residual on rows of arms 0 and k`,
+ "Shared nuisances make learner comparison fair and cheap."],
+ ["Policy","Turn effects into one arm per unit, under costs, shares or capacities.",
+`value_k = V * tau_k(x) - c_k            (control: 0)
+best:      argmax over eligible arms
+capacity:  for each arm, scarcest first:
+              rank unassigned rows by value_k
+              assign top N per bucket (region x month)
+              only where value_k > 0`,
+ "Arms with propensity below 0.02 for a row are not eligible."],
+ ["Evaluation","Value any policy with referee scores, with paired bootstrap intervals.",
+`value(policy) = mean( V * gamma[row, chosen] - c[chosen] )
+bootstrap by unit; compare policies pairwise
+baselines: all control, best single arm, business rule`,
+ "Paired differences are much tighter than two separate intervals."],
+ ["Calibration","Check, per arm, whether predicted effect sizes match observed ones.",
+`bin rows by predicted effect
+observed = mean(gamma_k - gamma_0) per bin
+slope = observed ~ predicted   (1 = calibrated)`,
+ "Applied only if it improves decisions on held-out rows."],
+ ["Robustness","Seven checks before anyone trusts the gain.",
+`overlap · clip sensitivity · stability by month and segment
+bootstrap agreement · placebo (shuffled arms, 19 refits)
+A/A (outcome the arm cannot affect) · overfit`,
+ "A failed check is reported, not hidden."],
+ ["Interpretation","Which features matter, then how they move the effect.",
+`importance per arm, against a shadow-feature noise floor
+decision importance: shuffle a feature, count switched arms
+effects along a feature, model curve vs DR observed
+one row explained: value gap to the runner-up`,
+ "Observed DR effects are overlaid so curves can be checked against data."],
+];
+const ol=document.getElementById("steps"), panel=document.getElementById("panel");
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function show(i){
+  ol.querySelectorAll("button").forEach((b,j)=>{b.setAttribute("aria-selected",j===i);b.tabIndex=j===i?0:-1});
+  const s=steps[i];
+  panel.innerHTML=`<h3>${esc(s[0])}</h3><p>${esc(s[1])}</p><pre>${esc(s[2])}</pre><p class="why">${esc(s[3])}</p>`;
+}
+steps.forEach((s,i)=>{const li=document.createElement("li"),b=document.createElement("button");
+  b.type="button";b.role="tab";b.id="step-"+i;b.textContent=s[0];b.onclick=()=>show(i);
+  b.onkeydown=e=>{if(e.key==="ArrowDown"||e.key==="ArrowRight"){e.preventDefault();const n=(i+1)%steps.length;show(n);ol.querySelectorAll("button")[n].focus()}
+    if(e.key==="ArrowUp"||e.key==="ArrowLeft"){e.preventDefault();const n=(i-1+steps.length)%steps.length;show(n);ol.querySelectorAll("button")[n].focus()}};
+  li.appendChild(b);ol.appendChild(li)});
+show(5);
+
+const NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;parent&&parent.appendChild(e);return e}
+
+/* beer: agreement by outlet type */
+const agree=[["Bar",76.6,32.3],["Minimart",72.4,35.6],["Restaurant",71.8,36.1],["Grocery",65.3,32.1],["Modern trade",52.4,30.1],["All outlets",68.9,33.4]];
+(function(){const svg=document.getElementById("agree"),L=104,R=388,top=10,rowH=34,x=v=>L+(R-L)*v/100;
+  [0,25,50,75,100].forEach(t=>{el("line",{x1:x(t),x2:x(t),y1:top-4,y2:top+rowH*agree.length,style:"stroke:var(--rule)"},svg);
+    el("text",{x:x(t),y:top+rowH*agree.length+14,"text-anchor":"middle","font-size":10,style:"fill:var(--muted)"},svg,t)});
+  agree.forEach((a,i)=>{const y=top+i*rowH;
+    el("text",{x:L-8,y:y+16,"text-anchor":"end","font-size":11.5,style:"fill:var(--ink)"+(i===agree.length-1?";font-weight:600":"")},svg,a[0]);
+    el("rect",{x:L,y:y+3,width:x(a[1])-L,height:12,rx:2,style:"fill:var(--accent)"},svg);
+    el("rect",{x:L,y:y+17,width:x(a[2])-L,height:8,rx:2,style:"fill:var(--neutral)"},svg);
+    el("text",{x:x(a[1])+5,y:y+13.5,"font-size":10.5,style:"fill:var(--ink)"},svg,a[1].toFixed(1));
+    el("text",{x:x(a[2])+5,y:y+25,"font-size":9.5,style:"fill:var(--muted)"},svg,a[2].toFixed(1));});
+})();
+
+/* loans: forest plot per version */
+const V={
+ "First, full":{c:"Early-Msg",a:[["Early-Call",-0.4,-0.6,-0.1],["Late-Call",0.3,0.0,0.5],["Late-Msg",1.0,0.7,1.2]],t:"First instalment, 4 arms. Late schedule with a tracked message first is clearly best; a direct call on the early schedule does worse than control."},
+ "First, reduced":{c:"Late-Call",a:[["Late-Msg",0.7,0.5,1.0]],t:"First instalment, late schedule only. The tracked message beats the direct call by 0.7 pp."},
+ "Later, full":{c:"1T+Email",a:[["1T",-0.3,-0.4,-0.2],["2T-Early+Email",1.3,1.2,1.4],["2T-Early",1.3,1.2,1.4],["2T-Late",1.4,1.3,1.6]],t:"Second instalment onward, 5 arms. Any second reminder adds 1.3 to 1.4 pp; dropping the email from a single reminder costs 0.3 pp."},
+ "Later, reduced":{c:"2T-Early+Email",a:[["2T-Early",0.0,-0.1,0.1],["2T-Late",0.1,0.0,0.3]],t:"Two-reminder arms only. Email adds nothing; a later first reminder adds 0.1 pp, interval just above zero before rounding."}};
+const sel=document.getElementById("vsel"),svgF=document.getElementById("forest"),cap=document.getElementById("fcap");
+function drawF(key){const v=V[key];svgF.innerHTML="";
+  sel.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===key));
+  const L=116,R=396,x=p=>L+(R-L)*(p+1)/3,top=12,rowH=Math.min(44,150/v.a.length),H=top+rowH*v.a.length;
+  [-1,-0.5,0,0.5,1,1.5,2].forEach(t=>{el("line",{x1:x(t),x2:x(t),y1:top-6,y2:H,style:"stroke:"+(t===0?"var(--ink)":"var(--rule)")+";stroke-width:"+(t===0?1:0.7)},svgF);
+    el("text",{x:x(t),y:H+14,"text-anchor":"middle","font-size":10,style:"fill:var(--muted)"},svgF,(t>0?"+":"")+t)});
+  el("text",{x:(L+R)/2,y:H+30,"text-anchor":"middle","font-size":10,style:"fill:var(--muted)"},svgF,"pp vs "+v.c+", 95% interval");
+  v.a.forEach((r,i)=>{const y=top+i*rowH+rowH/2,col=r[2]>0?"var(--pos)":r[3]<0?"var(--neg)":"var(--neutral)";
+    el("text",{x:L-10,y:y+4,"text-anchor":"end","font-size":11.5,style:"fill:var(--ink)"},svgF,r[0]);
+    el("line",{x1:x(r[2]),x2:x(r[3]),y1:y,y2:y,style:"stroke:"+col+";stroke-width:3;stroke-linecap:round"},svgF);
+    el("circle",{cx:x(r[1]),cy:y,r:5,style:"fill:"+col},svgF);
+    el("text",{x:r[1]<0?x(r[2])-8:x(r[3])+8,y:y+4,"text-anchor":r[1]<0?"end":"start","font-size":11,style:"fill:var(--ink);font-weight:600"},svgF,(r[1]>0?"+":r[1]<0?"−":"±")+Math.abs(r[1]).toFixed(1))});
+  svgF.setAttribute("viewBox",`0 0 420 ${H+38}`);
+  cap.textContent=v.t+" Green: interval above zero; orange: below; grey: includes zero.";}
+Object.keys(V).forEach(k=>{const b=document.createElement("button");b.type="button";b.dataset.k=k;b.textContent=k;b.onclick=()=>drawF(k);sel.appendChild(b)});
+drawF("Later, full");
+})();
+</script>
+</body>
+</html>

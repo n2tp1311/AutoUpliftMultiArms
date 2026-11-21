@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model artifacts and run outputs
+*.pkl
+out/
+outputs/tmp/
+library/out/
+case_study_beer/data/
+# LaTeX intermediates of the report build
+case_study_beer/outputs/latex/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/
+.DS_Store
+
+# Local working files (kept locally, not part of the repository)
+# The library source is private: it stays on the owner's machine and is never pushed.
+library/
+auto_uplift_multi_arms.zip
+REQUIREMENTS_github_release.md
+RELEASE_PREP_NOTES.md
+# LaTeX build folder of the loan reminder report
+case_study_loan_reminders/build/

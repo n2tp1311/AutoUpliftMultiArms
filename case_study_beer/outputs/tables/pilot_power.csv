@@ -1,0 +1,5 @@
+months,analysis,outlets_per_side,sd_per_outlet,se_difference,mde_80_power,r2_adjustment
+3,raw,9000,3749462,55894,156502,
+3,adjusted,9000,1793870,26741,74876,0.771
+6,raw,9000,3623678,54019,151252,
+6,adjusted,9000,1678658,25024,70067,0.785

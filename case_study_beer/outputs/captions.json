@@ -1,0 +1,206 @@
+{
+  "tab:rows_per_arm": {
+    "caption": "Rows per arm in the full panel: count, share, share coming from the randomised trade test, mean cases ordered.",
+    "step": "Part 1, h.rows_per_arm"
+  },
+  "tab:capacity_full": {
+    "caption": "Capacity per region and month for the whole outlet base (outlets per month).",
+    "step": "Part 1, meta['capacity']"
+  },
+  "tab:data_dictionary": {
+    "caption": "Data dictionary: every column of the panel.",
+    "step": "Part 1, h.data_dictionary"
+  },
+  "tab:naive_vs_true": {
+    "caption": "Average effect in cases per outlet-month: naive difference of means on all rows, difference on trade-test rows (outlets where the arm is allowed), and the true average effect.",
+    "step": "Part 1, h.naive_vs_true"
+  },
+  "tab:true_effects_by_channel": {
+    "caption": "True mean effect (tau, cases per outlet-month) and true mean net value (net, VND per outlet-month) of each arm, by channel.",
+    "step": "Part 2, h.true_effects_by"
+  },
+  "tab:true_best_by_channel": {
+    "caption": "Share of rows (%) whose true best arm is each arm, by channel.",
+    "step": "Part 2, h.true_best_mix"
+  },
+  "tab:promo_by_share_truth": {
+    "caption": "True effect and true net value of price_promo by band of brand_share_est (rows with a known share).",
+    "step": "Part 2, h.promo_by_share"
+  },
+  "tab:feature_filter": {
+    "caption": "FeatureFilter decision for every feature, with the reason and the numbers behind it.",
+    "step": "Part 4, FeatureFilter.report()"
+  },
+  "tab:tuner_summary": {
+    "caption": "Tuner candidates, scored on the validation outlets (DR net value, VND per outlet-month), with tie and chosen flags.",
+    "step": "Part 5, MultiArmTuner.summary()"
+  },
+  "tab:methods_oof": {
+    "caption": "Out-of-fold DR net gain of the best-arm policy over the BAU rule (VND per outlet-month, 95% CI) on the training outlets, per final-stage method.",
+    "step": "Part 6, MultiArmLearner(methods=...)"
+  },
+  "tab:capacity_usage": {
+    "caption": "Capacity use on the test outlets, per arm, region and month.",
+    "step": "Part 7, MultiArmPolicy.capacity_usage()"
+  },
+  "tab:allocation_channel": {
+    "caption": "Share of test rows (%) given each arm, by channel, under the best and the capacity policy.",
+    "step": "Part 7, h.allocation"
+  },
+  "tab:allocation_region": {
+    "caption": "Share of test rows (%) given each arm, by region, under the best and the capacity policy.",
+    "step": "Part 7, h.allocation"
+  },
+  "tab:sweep_top10": {
+    "caption": "Share sweep on the training outlets (out of fold): the 10 best combinations, DR net value and gain over the BAU rule in VND per outlet-month.",
+    "step": "Part 7, MultiArmEvaluator.sweep_shares()"
+  },
+  "fig:sweep": {
+    "caption": "Share sweep: DR gain over the BAU rule (VND per outlet-month) of every share combination; the selected one is marked.",
+    "step": "Part 7, MultiArmEvaluator.plot_sweep()"
+  },
+  "tab:policy_table": {
+    "caption": "Net gain over all-control on the test outlets, VND per outlet-month: DR estimate with 95% CI, true value, gap to the oracle, estimate scaled to 20,000 outlets (million VND per month), and the arm mix (%).",
+    "step": "Part 8, h.policy_table on the referee's DR scores"
+  },
+  "tab:paired_differences": {
+    "caption": "Paired differences between policies on the test outlets (VND per outlet-month): DR estimate with 95% CI (same rows, outlets resampled) and the true difference.",
+    "step": "Part 8, MultiArmEvaluator.paired_difference()"
+  },
+  "tab:pilot_power": {
+    "caption": "Pilot size: minimum detectable difference (VND per outlet-month, 80% power, 5% two-sided) of a randomised pilot with 9,000 outlets per side, by duration and analysis.",
+    "step": "Part 8, h.pilot_power"
+  },
+  "tab:agreement": {
+    "caption": "Share of test rows (%) where the model's best-arm policy and the BAU rule choose the true best arm, by channel.",
+    "step": "Part 8, h.agreement_by"
+  },
+  "tab:qini_evidence": {
+    "caption": "Per arm on the test rows where every arm has evidence: gain if all get it, auuc, Qini with 95% CI, and whether the ranking beats random.",
+    "step": "Part 9, MultiArmEvaluator.qini_by_arm() on rows with evidence"
+  },
+  "tab:qini": {
+    "caption": "Per arm on the test outlets: gain of giving the arm to everyone (ate), area under the gain curve (auuc), Qini with 95% CI, and whether the ranking beats random targeting.",
+    "step": "Part 9, MultiArmEvaluator.qini_by_arm()"
+  },
+  "fig:uplift_curve": {
+    "caption": "Uplift (gain) curves on the test outlets: DR net gain in VND per outlet-month when the top x% of rows by predicted effect get the arm.",
+    "step": "Part 9, MultiArmEvaluator.plot_uplift_curve()"
+  },
+  "tab:calibration_slope": {
+    "caption": "Calibration slope per arm (training outlets, out of fold, rows with evidence for every arm): DR observed effect regressed on predicted effect.",
+    "step": "Part 10, MultiArmCalibrator.slope_"
+  },
+  "tab:calibration_error": {
+    "caption": "Calibration on the test outlets (rows with evidence for every arm): mean absolute error between predicted and DR observed effect per bin (cases), before and after calibration.",
+    "step": "Part 10, MultiArmCalibrator.calibration_error()"
+  },
+  "fig:calibration": {
+    "caption": "Calibration per arm (training outlets, out of fold, rows with evidence for every arm): mean predicted effect (x, cases) against DR observed effect (y, cases) per bin; the diagonal is perfect calibration.",
+    "step": "Part 10, MultiArmCalibrator.plot_calibration()"
+  },
+  "tab:noise_floor": {
+    "caption": "Feature importance per arm (vs control) with the noise floor from 5 shadow features; above_floor marks real drivers.",
+    "step": "Part 11, MultiArmInterpreter.importance_noise_floor()"
+  },
+  "tab:decision_importance": {
+    "caption": "Decision importance: share of rows whose best arm changes when the feature is shuffled.",
+    "step": "Part 11, MultiArmInterpreter.decision_importance()"
+  },
+  "fig:explain_top_order_frequency_3m": {
+    "caption": "explain_top: predicted effect (cases) of each arm along order_frequency_3m.",
+    "step": "Part 11, MultiArmInterpreter.explain_top()"
+  },
+  "fig:explain_top_vol_avg_3m": {
+    "caption": "explain_top: predicted effect (cases) of each arm along vol_avg_3m.",
+    "step": "Part 11, MultiArmInterpreter.explain_top()"
+  },
+  "fig:explain_top_channel": {
+    "caption": "explain_top: predicted effect (cases) of each arm along channel.",
+    "step": "Part 11, MultiArmInterpreter.explain_top()"
+  },
+  "fig:explain_top_n_coolers": {
+    "caption": "explain_top: predicted effect (cases) of each arm along n_coolers.",
+    "step": "Part 11, MultiArmInterpreter.explain_top()"
+  },
+  "fig:explain_top_vol_avg_3m_x_channel": {
+    "caption": "explain_top: predicted effect (cases) of each arm along vol_avg_3m x channel.",
+    "step": "Part 11, MultiArmInterpreter.explain_top()"
+  },
+  "tab:promo_vs_share_model": {
+    "caption": "Predicted price_promo effect (cases) by band of brand_share_est and channel.",
+    "step": "Part 11, MultiArmInterpreter.marginal_effect()"
+  },
+  "fig:promo_vs_share": {
+    "caption": "Predicted effect of price_promo (cases per outlet-month) along brand_share_est, one line per channel. Above the dashed line (2 cases) the promo pays for its cost.",
+    "step": "Part 11, MultiArmInterpreter.plot_marginal_effect()"
+  },
+  "tab:promo_vs_share_observed": {
+    "caption": "price_promo by band of brand_share_est: model effect and DR observed effect with 95% CI (cases per outlet-month).",
+    "step": "Part 11, MultiArmInterpreter.marginal_effect(kind='binned')"
+  },
+  "fig:promo_vs_share_observed": {
+    "caption": "Model effect of price_promo (line) and DR observed effect with 95% CI (dots) by band of brand_share_est, cases per outlet-month. Dashed: break-even at 2 cases.",
+    "step": "Part 11, MultiArmInterpreter.plot_marginal_effect(show_actual=True)"
+  },
+  "tab:promo_cutoff_train": {
+    "caption": "Observed price_promo effect (cases, out-of-fold DR, 95% CI over outlets) by band of brand_share_est on the training outlets, rows with evidence for every arm. Break-even: 2 cases.",
+    "step": "Part 11, pandas on training_frame()"
+  },
+  "fig:rep_vs_trend": {
+    "caption": "Predicted effect of rep_visit (cases per outlet-month) along vol_trend_3m, one line per channel.",
+    "step": "Part 11, MultiArmInterpreter.plot_marginal_effect()"
+  },
+  "fig:rep_size_trend_2d": {
+    "caption": "Predicted effect of rep_visit (cases) by outlet_size and vol_trend_3m.",
+    "step": "Part 11, MultiArmInterpreter.plot_marginal_effect_2d()"
+  },
+  "tab:arm_profile": {
+    "caption": "Arm profile under the best-arm policy: per channel and chosen arm, rows, share, mean predicted effect of the chosen arm (cases) and feature means.",
+    "step": "Part 11, MultiArmInterpreter.arm_profile()"
+  },
+  "tab:explain_row": {
+    "caption": "explain_row: why this outlet-month gets its arm rather than the runner-up (VND).",
+    "step": "Part 11, MultiArmInterpreter.explain_row()"
+  },
+  "fig:explain_row": {
+    "caption": "explain_row: contribution of each feature to the net value gap between the chosen arm and the runner-up (VND).",
+    "step": "Part 11, MultiArmInterpreter.plot_explain_row()"
+  },
+  "tab:overlap": {
+    "caption": "Overlap per arm on the training outlets: estimated propensity distribution and share of rows below the floor.",
+    "step": "Part 12, MultiArmRobustnessChecker.overlap()"
+  },
+  "tab:clip_sensitivity": {
+    "caption": "Clip sensitivity: DR value and gains (VND per outlet-month) for several propensity clips.",
+    "step": "Part 12, MultiArmRobustnessChecker.clip_sensitivity()"
+  },
+  "tab:stability_month": {
+    "caption": "Stability by month: policy value and gains with 95% CI (VND per outlet-month).",
+    "step": "Part 12, MultiArmRobustnessChecker.stability_by('month')"
+  },
+  "tab:stability_channel": {
+    "caption": "Stability by channel: policy value and gains with 95% CI (VND per outlet-month).",
+    "step": "Part 12, MultiArmRobustnessChecker.stability_by('channel')"
+  },
+  "tab:bootstrap_per_arm": {
+    "caption": "Bootstrap (5 refits on 80% subsamples): per arm, mean CI width of the effect, share of rows whose CI excludes 0, correlation with the original effects.",
+    "step": "Part 12, MultiArmRobustnessChecker.bootstrap_cate()"
+  },
+  "tab:overfit": {
+    "caption": "Overfit report: the same metrics in sample, out of fold (training outlets) and on the test outlets.",
+    "step": "Part 12, MultiArmRobustnessChecker.overfit_report()"
+  },
+  "tab:model_vs_truth": {
+    "caption": "Predicted against true effects on the test outlets (cases per outlet-month), per arm and channel.",
+    "step": "Part 13, h.model_vs_truth"
+  },
+  "fig:pred_vs_true": {
+    "caption": "Predicted (y) against true (x) effect per arm in cases per outlet-month, 4,000 random test rows; the dashed line is a perfect model.",
+    "step": "Part 13, matplotlib"
+  },
+  "tab:misses": {
+    "caption": "Most frequent wrong choices on the test outlets: true best arm, arm chosen, rows and mean regret (true net value lost, VND per outlet-month).",
+    "step": "Part 13, pandas"
+  }
+}

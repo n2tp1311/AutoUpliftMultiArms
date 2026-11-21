@@ -1,0 +1,9 @@
+comparison,est_difference,ci_low,ci_high,true_difference
+model_best - bau_rule,54221,-1125,110126,78655
+model_capacity - bau_rule,-55804,-119536,13618,-31490
+model_capacity - bau_within_limits,-14235,-83586,57084,48428
+model_capacity_promo_rule - bau_within_limits,6070,-63936,72631,58987
+model_capacity_promo_rule - model_capacity,20305,-6830,45217,10559
+model_best - model_capacity,110025,61496,157170,110146
+model_top_share - bau_rule,-27160,-86265,40741,-31033
+model_top_share - bau_within_limits,14410,-45426,82397,48886

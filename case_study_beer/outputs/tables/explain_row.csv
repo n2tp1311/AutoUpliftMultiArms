@@ -1,0 +1,13 @@
+item,feature_value,contribution,direction
+channel,on_trade_bar,305876.6916,for rep_visit
+order_frequency_3m,17,231036.7302,for rep_visit
+vol_avg_3m,99.9,-171899.2576,for price_promo
+seating_capacity,146.0,170714.1479,for rep_visit
+outlet_size,large,-121696.969,for price_promo
+province,north_05,110661.0212,for rep_visit
+brand_share_est,0.37,-82545.4639,for price_promo
+tet_month,0,79245.4507,for rep_visit
+other features,,78564.3249,for rep_visit
+average difference (all rows),,-361341.9604,for price_promo
+cost difference,,-30000.0,for price_promo
+total: value gap,,208614.7156,for rep_visit

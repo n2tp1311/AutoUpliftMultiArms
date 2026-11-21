@@ -1,0 +1,5 @@
+arm,comparison,tau_mean,mean_ci_width,share_ci_excludes_zero,mean_corr_with_original
+1,zalo_message vs control,-0.2499,1.998,0.1834,0.4067
+2,price_promo vs control,3.182,2.1877,0.8992,0.5528
+3,display_kit vs control,-5.4025,6.48,0.6982,0.9865
+4,rep_visit vs control,-2.6481,5.5352,0.8892,0.9852

@@ -1,0 +1,113 @@
+% Shared preamble of the two case study reports (business and technical).
+% Filled by build_case_study.py (placeholders in double angle brackets: font size, title, subtitle, audience, meta, run head, body).
+\documentclass[<<FONTSIZE>>,a4paper]{article}
+
+% ── fonts (TeX Gyre Heros = Helvetica clone; Latin Modern Mono for code) ─────
+\usepackage{fontspec}
+\setmainfont{texgyreheros}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold,
+  ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+\setmonofont{lmmonolt10}[Extension=.otf, UprightFont=*-regular, BoldFont=*-bold, ItalicFont=*-oblique, BoldItalicFont=*-boldoblique, Scale=0.92]
+\usepackage{unicode-math}
+\setmathfont{latinmodern-math.otf}
+
+% ── page ────────────────────────────────────────────────────────────────────
+\usepackage[a4paper, top=24mm, bottom=24mm, left=22mm, right=22mm, headheight=14pt]{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\definecolor{brand}{HTML}{1F4E79}
+\definecolor{muted}{HTML}{5B6573}
+\definecolor{rule}{HTML}{94A3B8}
+\definecolor{boxbg}{HTML}{F1F5F9}
+\definecolor{warnbg}{HTML}{FFF7ED}
+\definecolor{warnline}{HTML}{B45309}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\footnotesize\color{muted}<<RUNHEAD>>}
+\fancyfoot[C]{\footnotesize\color{muted}Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\usepackage{lastpage}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\linespread{1.08}
+\raggedbottom
+
+% ── headings: numbers are written in the heading text, LaTeX does not add any ─
+\usepackage{titlesec}
+\setcounter{secnumdepth}{0}
+\setcounter{tocdepth}{2}
+\titleformat{\section}{\Large\bfseries\color{brand}}{}{0pt}{}[{\color{brand}\titlerule[0.8pt]}]
+\titleformat{\subsection}{\large\bfseries\color{brand}}{}{0pt}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{}{0pt}{}
+\titlespacing*{\section}{0pt}{0pt}{1.2em}
+\titlespacing*{\subsection}{0pt}{1.4em}{0.5em}
+\usepackage{needspace}
+\newcommand{\sectionbreak}{<<SECTIONBREAK>>}
+
+% ── tables, figures, lists, code ────────────────────────────────────────────
+\usepackage{array, longtable, booktabs, calc, makecell, multirow}
+\renewcommand\theadfont{\bfseries}
+\renewcommand\theadgape{}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{pdflscape}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf, justification=raggedright, singlelinecheck=false}
+\usepackage{enumitem}
+\setlist{itemsep=0.25em, topsep=0.3em}
+\providecommand{\tightlist}{\setlength{\itemsep}{0.15em}\setlength{\parskip}{0pt}}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\footnotesize, breaklines=true, breakatwhitespace=false,
+  columns=fullflexible, keepspaces=true, backgroundcolor=\color{boxbg}, frame=l,
+  rulecolor=\color{rule}, framerule=1.2pt, xleftmargin=6pt, framexleftmargin=6pt,
+  aboveskip=0.6em, belowskip=0.6em, showstringspaces=false,
+  keywordstyle=\color{brand}\bfseries, commentstyle=\color{muted}\itshape, upquote=true}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable}
+\newtcolorbox{keybox}[1][]{colback=boxbg, colframe=brand, boxrule=0.6pt, arc=1mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm, breakable, #1}
+\newtcolorbox{warnbox}{colback=warnbg, colframe=warnline, boxrule=0.6pt, arc=1mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm}
+\newcommand{\nbref}[1]{\par{\small\color{muted}\textit{#1}}\par}
+\newcommand{\tabcap}[2]{\par\noindent{\small\textbf{#1}\ #2}\par\nopagebreak[4]\vspace{0.2em}}
+% pandoc helpers
+\providecommand{\pandocbounded}[1]{#1}
+\makeatletter\@ifundefined{c@none}{\newcounter{none}}{}\makeatother
+\def\LTcaptype{none}
+
+\usepackage[hidelinks]{hyperref}
+\usepackage{bookmark}
+\urlstyle{same}
+\hypersetup{pdftitle={<<TITLE>>}, pdfsubject={<<SUBTITLE>>}}
+% allow line breaks after underscores in identifiers
+\let\oldunderscore\_
+\renewcommand{\_}{\oldunderscore\penalty500\relax}
+
+\begin{document}
+
+% ── title page ──────────────────────────────────────────────────────────────
+\begin{titlepage}
+\vspace*{38mm}
+{\color{brand}\rule{\linewidth}{1.2pt}}\par\vspace{6mm}
+{\fontsize{24}{29}\selectfont\bfseries <<TITLE>>\par}
+\vspace{5mm}
+{\large\color{muted} <<SUBTITLE>>\par}
+\vspace{6mm}
+{\color{brand}\rule{\linewidth}{1.2pt}}\par
+\vspace{10mm}
+{\normalsize\textbf{<<AUDIENCE>>}\par}
+\vspace{4mm}
+{\small\color{muted} <<META>>\par}
+\vfill
+\begin{warnbox}
+\textbf{Synthetic data, illustrative numbers.} Every outlet, brand, cost, capacity and result in this
+document was simulated. Nothing here describes a real company, brand or market.
+\end{warnbox}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+<<BODY>>
+
+\end{document}

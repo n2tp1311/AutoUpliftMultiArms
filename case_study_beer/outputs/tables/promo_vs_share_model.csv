@@ -1,0 +1,37 @@
+group,bin,effect,n
+off_trade_grocery,"[0.03, 0.29]",3.9689,7005
+on_trade_restaurant,"[0.03, 0.29]",4.1227,4847
+on_trade_bar,"[0.03, 0.29]",4.2083,4210
+off_trade_minimart,"[0.03, 0.29]",4.3745,3938
+off_trade_grocery,"[0.29, 0.37]",3.2873,7005
+on_trade_restaurant,"[0.29, 0.37]",3.3415,4847
+on_trade_bar,"[0.29, 0.37]",3.4764,4210
+off_trade_minimart,"[0.29, 0.37]",3.6161,3938
+off_trade_grocery,"[0.37, 0.44]",3.2163,7005
+on_trade_restaurant,"[0.37, 0.44]",3.3025,4847
+on_trade_bar,"[0.37, 0.44]",3.3848,4210
+off_trade_minimart,"[0.37, 0.44]",3.5637,3938
+off_trade_grocery,"[0.44, 0.5]",3.0333,7005
+on_trade_restaurant,"[0.44, 0.5]",3.1248,4847
+on_trade_bar,"[0.44, 0.5]",3.1942,4210
+off_trade_minimart,"[0.44, 0.5]",3.3366,3938
+off_trade_grocery,"[0.5, 0.55]",2.9938,7005
+on_trade_restaurant,"[0.5, 0.55]",3.0405,4847
+on_trade_bar,"[0.5, 0.55]",3.1179,4210
+off_trade_minimart,"[0.5, 0.55]",3.2874,3938
+off_trade_grocery,"[0.55, 0.62]",2.7699,7005
+on_trade_restaurant,"[0.55, 0.62]",2.6717,4847
+on_trade_bar,"[0.55, 0.62]",2.6141,4210
+off_trade_minimart,"[0.55, 0.62]",3.0086,3938
+off_trade_grocery,"[0.62, 0.7]",2.7699,7005
+on_trade_restaurant,"[0.62, 0.7]",2.6717,4847
+on_trade_bar,"[0.62, 0.7]",2.6141,4210
+off_trade_minimart,"[0.62, 0.7]",3.0086,3938
+off_trade_grocery,"[0.7, 0.99]",2.7313,7005
+on_trade_restaurant,"[0.7, 0.99]",2.6425,4847
+on_trade_bar,"[0.7, 0.99]",2.5849,4210
+off_trade_minimart,"[0.7, 0.99]",2.9763,3938
+off_trade_grocery,missing,3.0333,7005
+on_trade_restaurant,missing,3.1248,4847
+on_trade_bar,missing,3.1942,4210
+off_trade_minimart,missing,3.3366,3938

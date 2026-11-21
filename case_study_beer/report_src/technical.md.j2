@@ -1,0 +1,1124 @@
+{#- Source of case_study_technical.pdf. Every number comes from outputs/ (n = case_study_numbers.json,
+    tval = one cell of an exported table, table / figure = exported tables and figures).
+    Build: python build_case_study.py -#}
+{%- set pt = n.policy_table -%}
+{%- macro spend(p) -%}{{ ((pt[p]["%_zalo"] * n.cost["1"] + pt[p]["%_promo"] * n.cost["2"] + pt[p]["%_display"] * n.cost["3"] + pt[p]["%_rep"] * n.cost["4"]) / 100) | round(-3) }}{%- endmacro -%}
+{%- set side_n = tval("pilot_power", "outlets_per_side", months=3, analysis="raw") -%}
+{%- set se3 = tval("pilot_power", "se_difference", months=3, analysis="adjusted") -%}
+{%- set best = pt["model_best"] -%}
+{%- set capp = pt["model_capacity"] -%}
+{%- set tops = pt["model_top_share"] -%}
+{%- set bau = pt["bau_rule"] -%}
+{%- set orc = pt["oracle (true best arm)"] -%}
+{%- set pb = n.paired["model_best - bau_rule"] -%}
+{%- set pc = n.paired["model_capacity - bau_rule"] -%}
+{%- set pbc = n.paired["model_best - model_capacity"] -%}
+{%- set pts = n.paired["model_top_share - bau_rule"] -%}
+{%- set baucap = pt["bau_within_limits"] -%}
+{%- set pcl = n.paired["model_capacity - bau_within_limits"] -%}
+{%- set capg = pt["model_capacity_promo_rule"] -%}
+{%- set pgl = n.paired["model_capacity_promo_rule - bau_within_limits"] -%}
+{%- set pgc = n.paired["model_capacity_promo_rule - model_capacity"] -%}
+## 1. Summary for a busy reader
+
+**The question.** A beer brand can give each of its {{ n.n_outlets | vnd }} outlets one trade action per month:
+nothing, a messaging-app reminder, a price promotion, a display kit or a sales rep visit. Which outlet
+should get which action, given the costs and the monthly limits on display kits and rep visits?
+
+**The answer.** Choosing the action per outlet with a model of each action's effect earns more than the
+current business rule (BAU), as long as the limits allow it. On {{ n.n_test_outlets | vnd }} outlets the
+model never saw:
+
+* **Model, no limits** (best action per outlet-month): estimated net gain over doing nothing
+  **{{ best.est_gain | vnd }} VND per outlet-month** (95% confidence interval {{ best.ci_low | vnd }} to
+  {{ best.ci_high | vnd }}). The true gain, known because the data is synthetic, is {{ best.true_gain | vnd }} VND.
+* **BAU rule**: estimated {{ bau.est_gain | vnd }} VND (true {{ bau.true_gain | vnd }} VND).
+* **Model minus BAU**, measured on the same outlets: **{{ pb.est_difference | vnd }} VND per outlet-month**
+  (CI {{ pb.ci_low | vnd }} to {{ pb.ci_high | vnd }}); true difference {{ pb.true_difference | vnd }} VND.
+  For {{ n.n_outlets | vnd }} outlets that is about {{ (pb.est_difference * n.n_outlets) | mvnd }} million VND
+  of extra net margin per month.{% if pb.ci_low <= 0 %} The interval includes zero, so these 6,000 test outlets
+  alone do not prove the difference. A second measurement on the same outlets (overfit report, Part 12) gives
+  {{ tval("overfit", "test", metric="gain_vs_bau_rule") | vnd }} VND with an interval above zero, but it is scored
+  with the trained model's own outcome models, so it is not an independent check. This report uses the referee's
+  number as the headline because the referee never grades the model with its own predictions. `model_best`
+  spends more on arms than BAU (about {{ spend("model_best") | float | vnd }} against {{ spend("bau_rule") | float | vnd }} VND per
+  outlet-month), so its gain is net of higher spending.{% endif %}
+* **With the limits.** BAU breaks the limits: it gives display kits to {{ bau["%_display"] | f(1) }}% and rep
+  visits to {{ bau["%_rep"] | f(1) }}% of outlet-months, against caps of about 6% and 8%. Cut down to the caps
+  (at random), BAU is worth {{ baucap.est_gain | vnd }} VND (true {{ baucap.true_gain | vnd }}). The model within
+  the caps is worth {{ capp.est_gain | vnd }} VND (true {{ capp.true_gain | vnd }}). In truth the model is
+  {{ pcl.true_difference | vnd }} VND per outlet-month better, but the estimate, which is all a real project would
+  have, is **{{ pcl.est_difference | vnd }} VND (CI {{ pcl.ci_low | vnd }} to {{ pcl.ci_high | vnd }}): it cannot tell
+  the two apart** on {{ n.n_test_outlets | vnd }} outlets.
+* **Ceiling** (true best action everywhere): {{ orc.true_gain | vnd }} VND. The model without limits reaches
+  {{ (best.true_gain / orc.true_gain) | pct(0) }} of it; BAU reaches {{ (bau.true_gain / orc.true_gain) | pct(0) }}.
+
+**Main weakness.** The model gets the size of the price promo effect too flat: it predicts that the promo pays
+for itself almost everywhere, while in truth it loses money where the brand already has most of the outlet's
+volume. Under the caps this matters, because the promo then fills most of the rows that cannot get a display
+kit or a rep visit (section 7, Parts 7 and 11).
+
+**Recommendation.** The model ranks outlets for display kits and rep visits better than random, and the caps
+cost money (section 7). Within the caps, its advantage over BAU is real in the simulation but not shown by the
+data. So: run the model within the caps as a randomised pilot against BAU within the caps, with no price promo
+where the brand share is above 0.6, and keep about 10% of outlets on a random arm to keep measuring. Section 9
+sizes the pilot: all outlets outside the 10% holdout (about 9,000 per side), 3 months and the adjusted analysis, the smallest difference it detects
+with 80% power is {{ tval("pilot_power", "mde_80_power", months=3, analysis="adjusted") | vnd }} VND per outlet-month,
+larger than the true gap. At the true gap of the policy it would test ({{ pgl.true_difference | vnd }}) its power is
+about {{ (100 * phi(pgl.true_difference / se3 - 1.96)) | round | int }}%, so a "no clear difference" result is quite
+possible even though the model is better in the simulation.
+
+## 2. Business context
+
+**Who decides, what, how often.** The trade marketing team of a beer brand decides once a month, for each of
+its {{ n.n_outlets | vnd }} retail outlets, which single trade action the outlet gets that month. The same
+outlet can get a rep visit in March and nothing in April. Outlets are bars, restaurants, groceries,
+minimarts and modern trade stores (supermarket chains) in five regions.
+
+**The five arms.** Each possible action is called an *arm*. Costs are per outlet per month and illustrative.
+
+| Code | Arm | What it physically is | Cost (VND) | Limited per region and month? |
+|---|---|---|---|---|
+{%- for k in ["0", "1", "2", "3", "4"] %}
+| {{ k }} | `{{ n.arm_labels[k] }}` | {{ n.arm_descriptions[k] }} | {{ n.cost[k] | vnd }} | {{ "yes" if k in n.capacity_full else "no" }} |
+{%- endfor %}
+
+Each extra case ordered is worth {{ n.value_per_outcome | vnd }} VND of gross margin (`value_per_outcome`). The
+*net value* of an arm for one outlet-month is `{{ n.value_per_outcome | vnd }} x (extra cases) - cost`. So a
+rep visit pays for itself above {{ (n.cost["4"] / n.value_per_outcome) | f(1) }} extra cases, a display kit
+above {{ (n.cost["3"] / n.value_per_outcome) | f(1) }}, a price promo above
+{{ (n.cost["2"] / n.value_per_outcome) | f(1) }} and a message above {{ (n.cost["1"] / n.value_per_outcome) | f(2) }}.
+
+The promo cost is a fixed average per outlet. A real "buy 10 get 1" costs more where more is ordered; the
+method takes one fixed cost per arm, so this is a simplification of the demo.
+
+{{ table("capacity_full", rename={"region": "region", "outlets": "outlets in region"}) }}
+
+Display kits are limited to about 6% and rep visits to about 8% of the outlets of a region per month.
+
+**Why "the best arm per outlet" is not obvious.**
+
+* *Costs differ by a factor of 200*, so the arm with the largest effect is not the arm with the best net value.
+* *Capacity*: reps and display kits cannot reach every outlet that would benefit.
+* *Effects differ by outlet*: a rep visit works in a large bar with falling sales and does little in a
+  small grocery with steady sales; a display kit works in a grocery with coolers and not in a bar.
+* *Some actions lose money*: a price promo where the brand already has most of the outlet's beer volume
+  mostly gives away cases that would have been bought anyway.
+* *The data is not a clean experiment*: 30% of past actions followed the BAU rule, so comparing outlets
+  that got an action with outlets that did not is biased (section 3).
+
+## 3. Data
+
+{{ nbref(1) }}
+
+### Part 1. Data
+
+**Purpose.** Describe the panel: one row is one outlet in one month.
+
+**What it is.** {{ n.n_rows | vnd }} rows = {{ n.n_outlets | vnd }} outlets x {{ n.n_months }} months, from
+{{ n.month_first }} to {{ n.month_last }}. {{ n.tet_month }} is the month of the lunar new year (Tet), when beer sales
+peak; May and June start the rainy season. The outcome is `cases_ordered`: cases of beer the outlet ordered
+in the month, 0 if it did not order (unit: cases per outlet-month). The mean is {{ n.mean_cases | f(1) }} cases;
+{{ n.zero_share | pct }} of outlet-months have no order; when an outlet orders, the median is
+{{ n.median_cases_if_order | f(1) }} cases.
+
+**How arms were assigned.** {{ n.randomised_share | pct }} of outlet-months were in a randomised *trade test*:
+the arm was drawn at random among the arms allowed for the outlet. Modern trade stores could only get
+`control`, `zalo_message` or `price_promo` (no display kits or rep visits in supermarket chains). The other
+outlet-months followed the BAU rule, the first matching line of:
+
+| # | Condition | BAU arm |
+|---|---|---|
+| 1 | modern trade and `brand_share_est` below 0.4 | `price_promo` |
+| 2 | modern trade (other) | `control` |
+| 3 | on-trade (bar, restaurant) and size large | `rep_visit` |
+| 4 | on-trade, size medium and `vol_trend_3m` below -0.15 | `rep_visit` |
+| 5 | off-trade (grocery, minimart) with at least 2 coolers | `display_kit` |
+| 6 | `vol_trend_3m` below -0.2 | `price_promo` |
+| 7 | `days_since_last_order` above 45 | `zalo_message` |
+| 8 | otherwise | `control` |
+
+The rule's arm is stored in `rule_arm` for every row, so the BAU rule can be valued as a policy. It ignores
+the capacity limits: in the simulated history the caps were not enforced. The caps of section 2 are a planning
+constraint for the coming months, which is why every capped policy is compared with BAU cut down to the same caps.
+
+```python
+df, truth, meta = h.load_data()                   # panel, true effects, metadata
+FEATURES = h.features_of(df)                         # every column except ids, arm, rule_arm, design flag, outcomes
+```
+
+{{ table("rows_per_arm") }}
+
+**How to read it.** `from_trade_test_%` is the share of the arm's rows that were randomised. Rows from the
+BAU rule are not comparable across arms: the rule gives rep visits to large bars and display kits to
+outlets with coolers, which order more anyway.
+
+{{ table("naive_vs_true", rename={"naive_difference_all_rows": "naive difference, all rows",
+  "difference_trade_test_rows": "difference, trade-test rows", "true_average_effect": "true average effect"}) }}
+
+**Finding.** Comparing average cases by arm on all rows is badly wrong: it says a display kit *loses*
+{{ (-n.naive.display_kit.naive_difference_all_rows) | f(1) }} cases, when the true average effect is
++{{ n.naive.display_kit.true_average_effect | f(1) }}. Outlets that the BAU rule chose for display kits
+(rows with coolers) and rep visits differ from the rest. On the randomised trade-test rows alone the
+differences have the right sign and order of size for promo, display and rep, but they are noisy, with no
+intervals shown here (the message row is -0.06 against a true +0.47). This is why the method uses propensities and doubly robust
+scores (section 5) instead of raw averages.
+
+**Data dictionary.** Every column of the panel. "Missing" is the share of rows with no value.
+
+{{ table("data_dictionary", size="small", rename={"missing_%": "missing %"}, wrap={"meaning": "0.36\\linewidth"}) }}
+
+`arm`, `rule_arm`, `in_trade_test`, `cases_ordered` and `reordered` are never used as features.
+`month_index` is added by the notebook. Three columns were planted on purpose to test the method:
+`legacy_program_flag` (almost always 0), `vol_avg_3m_reported` (a near copy of `vol_avg_3m`) and
+`noise_feature` (pure noise).
+
+**The data is synthetic.** It was generated by the `data_gen` package in the case study folder, following
+the written rules in `data_rules.md`. Simulated: outlet attributes, monthly ordering behaviour with
+seasonality and Tet, history features built from simulated past months, the trade test and BAU assignment,
+and the effect of each arm (section 4). Why: so the true effect of every arm on every row is known and the
+model can be graded, which is impossible with real data.
+
+## 4. Ground truth
+
+{{ nbref(2) }}
+
+### Part 2. Ground truth (synthetic data only)
+
+**Purpose.** State the true effect structure the generator used, so the reader can judge the model against
+it. Real projects do not have this; it exists here only because the data is simulated.
+
+**The true effects, in words.** Each arm changes the chance that the outlet orders this month and/or the
+number of cases it orders. Every arm's effect on order probability and on cases per order is multiplied by 1.4 in the Tet month.
+
+| Arm | Works best for | Little or negative effect for |
+|---|---|---|
+| `zalo_message` | Outlets that have not ordered for a long time (above about 40 days) | Regular buyers: close to zero |
+| `price_promo` | Outlets where our brand share is low, more when a competitor runs a promo; larger outlets | Outlets where our share is high: the promo pays for cases that would be bought anyway |
+| `display_kit` | Groceries and minimarts with coolers, more coolers and larger outlets | Bars and restaurants; outlets without coolers |
+| `rep_visit` | Large bars and restaurants whose sales are falling (size x trend interaction) | Modern trade, where store staff cannot order |
+
+{{ table("true_effects_by_channel", rename={"tau_zalo_message": "tau z", "tau_price_promo": "tau p",
+  "tau_display_kit": "tau d", "tau_rep_visit": "tau r", "net_zalo_message": "net z", "net_price_promo": "net p",
+  "net_display_kit": "net d", "net_rep_visit": "net r"}) }}
+
+**How to read it.** z, p, d and r stand for `zalo_message`, `price_promo`, `display_kit` and `rep_visit`. `tau`
+columns are the true average extra cases per outlet-month; `net` columns are
+{{ n.value_per_outcome | vnd }} x tau minus the cost, in VND per outlet-month. A negative net value means the arm
+loses money on average in that channel.
+
+{{ table("true_best_by_channel") }}
+
+The oracle may pick an arm a channel never got: in modern trade the true best arm is a rep visit for a few rows,
+although rep visits are never given there. The oracle is a ceiling, not an available policy.
+
+{{ table("promo_by_share_truth", rename={"share_rows_promo_loses_%": "% rows where promo loses money"}) }}
+
+**Finding.** The true best arm depends on the channel: `rep_visit` in bars and restaurants, `display_kit` or
+`rep_visit` in groceries and minimarts, `price_promo` in modern trade. The price promo loses money on
+average once `brand_share_est` is above about 0.6 to 0.7. Every arm loses money for some rows: the share of
+rows where the true net value is negative is {{ n.harmful_share.zalo_message | pct(0) }} for `zalo_message`,
+{{ n.harmful_share.price_promo | pct(0) }} for `price_promo`, {{ n.harmful_share.display_kit | pct(0) }} for
+`display_kit` and {{ n.harmful_share.rep_visit | pct(0) }} for `rep_visit`. On the whole panel, the BAU rule's
+true net gain over doing nothing is {{ n.true_bau_full | vnd }} VND per outlet-month and the ceiling (true best
+arm everywhere, the *oracle*) is {{ n.true_oracle_full | vnd }} VND.
+
+## 5. Definitions
+
+Sections 3, 4, 6, 7 and 8 of this report follow the notebook: each heading "Part N" is notebook Part N, and
+the line under each section heading gives the notebook cells (counted from 1, markdown cells included). Sections 1, 2, 5, 9, 10 and 12 have no notebook part (section 9 shows tables computed in Parts 8 and 11);
+section 11 is Part 14.
+Code excerpts use the notebook's short names: `h` is the case study helper module, `aum` the modelling
+library, `it` an interpretation object, `rc` a robustness-check object and `ev` an evaluation object.
+`ds_tr` and `ds_te` are the training and test outlets after the feature filter; `ds_null` is the training data with
+an outcome no arm can change (A/A test); `oof` holds the out-of-fold predictions on the training outlets;
+`frame_te` the predictions on the test outlets; `with_evidence()` keeps the rows where every arm has an estimated
+propensity of at least 0.02. Cross-fitting uses K = 3 folds grouped by outlet (`h.N_FOLDS`).
+
+Formulas use: `x` the features of a row, `y` its outcome, `arm` the arm it received, `k` an arm (0 to 4).
+
+| Term | Meaning |
+|------------|--------------------------------------|
+| Arm | One of the five possible actions for an outlet-month, coded 0 to 4: `control` (0), `zalo_message` (1), `price_promo` (2), `display_kit` (3), `rep_visit` (4). Each outlet-month gets exactly one arm. |
+| Control | Arm 0, no action. Every effect is measured against it. |
+| Outcome, y | What the action should change: `cases_ordered`, the cases the outlet orders in the month (0 if it does not order). |
+| Potential outcome, mu_k | The expected cases an outlet-month would order if it got arm k: `mu_k(x) = E[y | arm = k, x]`. Only one of the five is ever observed for a row. |
+| Uplift, CATE, tau | The effect of arm k against control for a row with features x: `tau_k(x) = mu_k(x) - mu_0(x)`, in cases per outlet-month. CATE stands for conditional average treatment effect; "uplift" is the business word for the same thing. |
+| Net value | What an arm is worth for a row in money: `60,000 x tau_k - cost_k`, in VND per outlet-month (60,000 VND gross margin per case). Control has net value 0. |
+| Propensity, e_k | The probability that a row with features x received arm k in the data: `e_k(x) = P(arm = k | x)`. Known by design for trade-test rows, estimated by a model for the mix of test and BAU rows. |
+| Overlap | Every arm has a non-negligible propensity for every kind of row. Where an arm was never given (for example `display_kit` in modern trade), there is no evidence of its effect there. |
+| Propensity clip | A floor (0.01 here) applied to e_k inside the DR score so that a tiny propensity cannot blow up one row's weight. |
+| Propensity floor | A policy rule (0.02 here): an arm whose estimated propensity for a row is below it is never chosen for that row. |
+| Nuisance models | The models the effect estimate needs but that are not the effect itself: the outcome models mu_k and the propensity model e_k. |
+| Cross-fitting | Every row's nuisance and effect predictions come from models fitted on other folds, so no row is scored by a model that saw it. Folds are grouped by outlet here. |
+| DR score, gamma_k | The doubly robust estimate of the outcome a row would have had under arm k: `gamma_k = mu_k + 1[arm = k] (y - mu_k) / max(e_k, 0.01)`. Unbiased on average if either the outcome model or the propensity model is right. |
+| DR learner (`dr`), T-learner (`t`), X-learner (`x`) | Three ways to estimate tau_k from the same nuisances. `dr` regresses `gamma_k - gamma_0` on x; `t` subtracts two outcome models; `x` imputes effects in each arm and blends them by propensity. |
+| Policy | A rule that assigns one arm to every row, here from the predicted effects and the costs. |
+| Policy value | The mean net value of a policy over rows, estimated with DR scores: `mean(60,000 x gamma[row, chosen arm] - cost[chosen arm])` (the total value, including the base margin). Reported as the gain over all-control, `mean(60,000 x (gamma[row, chosen] - gamma[row, control]) - cost[chosen])`, in VND per outlet-month. |
+| BAU (business as usual) | The current rule (section 3) that assigned arms to the 30% of rows outside the trade test. It is also evaluated as a policy. |
+| Oracle | The policy that gives every row its true best arm. Only computable on synthetic data; it is the ceiling. |
+| Best single arm | The one arm that, given to every row, has the highest value. |
+| Capacity bucket | A group of rows sharing a capacity limit: here one region in one month. |
+| Share sweep | A search over the shares of rows given to each arm (`top_share` policy), valued with DR scores. |
+| Uplift curve | For one arm, the net gain of giving it to the top x% of rows ranked by predicted effect, as x goes from 0 to 100%. |
+| Qini | The area between the uplift curve and the straight line of random targeting. Positive means the ranking beats random. |
+| Calibration | Whether predicted effect sizes match observed ones: rows predicted to gain 2 cases should gain about 2 cases. The calibration slope is 1 for a calibrated arm. |
+| Feature importance | How much each feature moves the predicted effect of an arm (mean absolute TreeSHAP contribution, in cases). |
+| Noise floor | The largest importance reached by shuffled copies of real features ("shadow" features, pure noise). A feature below it is not a reliable driver. |
+| Decision importance | The share of rows whose chosen arm changes when one feature is shuffled across rows. |
+| Paired difference | The difference in value between two policies on the same rows, with a bootstrap CI that resamples whole outlets. Much tighter than comparing two separate CIs. |
+| CI | Confidence interval, here the 95% bootstrap interval. |
+| MDE | Minimum detectable effect: the smallest true difference a pilot finds with 80% probability at the 5% level (two-sided). |
+| PDP | Partial dependence: the mean predicted effect as one feature moves, the others kept as they are. |
+| MAE | Mean absolute error. The "binned error" of Part 10 is the MAE between predicted and DR observed effect over bins of predicted effect. |
+| AUUC | Area under the uplift curve. |
+| Placebo test | Refit with the arm column shuffled, several times. Any gain the model then finds is noise; the real gain (same refit, real arms) must be above every shuffled one. |
+| A/A test | Refit with an outcome the arm cannot affect (last month's volume). The model must not find a significant positive gain: the CI must not lie above zero. A negative gain is expected, since every arm then only costs money. |
+| Referee | A separate DR learner fitted only on the evaluation rows to produce the DR scores, so a model is never graded with its own predictions. |
+| BAU within the limits | The BAU rule cut down to the display and rep caps: where the rule exceeds a cap in a region-month, a random subset keeps the arm and the rest get control. The fair baseline for the capacity policy. |
+| VND | Vietnamese dong, the currency of the simulation. 60,000 VND is the gross margin of one case. |
+| LightGBM | The gradient-boosted tree library used for every model (outcome, propensity, effect). `num_leaves` and `min_child_samples` are its two main size settings. |
+| TPE | Tree-structured Parzen estimator, the search method of the tuner (from the Optuna library): it proposes new settings near the ones that scored well. |
+| TreeSHAP | An exact way to split a tree model's prediction into one contribution per feature. |
+| ESS | Effective sample size of the DR weights for an arm: how many equally weighted rows the evidence is worth. Small ESS means weak overlap. |
+| Regret | For one row, the true net value of the true best arm minus the true net value of the chosen arm. Only computable on synthetic data. |
+
+## 6. Method
+
+The method is described in full, with pseudocode, in `method/README.md` of the repository. This section lists
+every choice made in the run, with the value used and the reason.
+
+{{ nbref(3) }}
+
+### Part 3. Train / test split
+
+**Purpose.** Keep some outlets aside to measure the result honestly.
+
+**Choice.** {{ (n.test_share) | pct(0) }} of outlets ({{ n.n_test_outlets | vnd }} outlets,
+{{ n.n_test_rows | vnd }} rows) go to the test set with all their months; {{ n.n_train_outlets | vnd }} outlets
+({{ n.n_train_rows | vnd }} rows) are used for training. The split is random by outlet (seed {{ n.split_seed }}), not
+by time: the question is how well the model generalises to other outlets in the same months. Inside the
+training set, the cross-fitting folds are also grouped by outlet (`group_col="outlet_id"`), so no outlet is
+both in a model's training folds and in the rows it predicts.
+
+`month_index` (0 to 5) is a *nuisance-only* feature: the outcome and propensity models use it to absorb
+seasonality, but the effect models do not see it, because the effects must hold in future months.
+
+```python
+is_test = h.split_outlets(df)                         # 30% of outlets, seed 7
+```
+
+**Finding.** No outlet is in both sets.
+
+{{ nbref(4) }}
+
+### Part 4. Feature filter
+
+**Purpose.** Remove features that cannot help before fitting anything: mostly missing, almost constant, or
+almost a copy of another feature. Each removal comes with a reason. Association is measured with Cramér's V (`cramers_v`, 0 to 1) between two
+categorical features, the absolute correlation between two numeric ones and the symmetric uncertainty
+(`sym_uncertainty`, 0 to 1) between mixed ones; `target_assoc` is a feature's association with the outcome.
+
+**Choice.** Missing above 80%, one value in more than 99% of rows, or association above 0.95 with another
+feature (then the one less related to the outcome is dropped). `month_index` and `tet_month` are kept by
+force (`KEEP` in the code): they are perfectly associated (Tet is month index 1) but play different roles.
+
+```python
+ff = aum.FeatureFilter(null_threshold=0.8, near_constant_threshold=0.99, correlation_threshold=0.95,
+                       force_keep=KEEP).fit(ds_train)
+```
+
+{{ table("feature_filter", cols=["feature", "status", "reason"], size="small") }}
+
+Where the reason shows two equal values joined by ">" (for example `target_assoc=0.001 > ... 0.001`), the values
+differ beyond the 3 decimals printed; the comparison uses full precision.
+
+**Finding.** The filter removed {{ n.removed_features | length }} features: {% for f, r in n.removed_features.items() %}`{{ f }}`{{ ", " if not loop.last else "" }}{% endfor %}.
+Two of the three planted columns (the near-constant flag and the near copy)
+are caught; the third, `noise_feature`, is discussed below. `region` is removed because `province` determines it; it stays in the
+data for the capacity limits. `seating_capacity` stays although it is missing for about 60% of rows
+(off-trade outlets have no seats; the gradient-boosted trees handle missing values). `noise_feature` passes:
+no simple filter can tell noise from a weak real feature; the noise floor in Part 11 is the check for that.
+{{ n.n_kept }} features remain ({{ n.n_kept - 1 }} for the effect models: `month_index` is nuisance-only).
+
+{{ nbref(5) }}
+
+### Part 5. Tuning: learner and LightGBM parameters
+
+**Purpose.** Choose the effect learner and the model complexity on outlets the candidates were not fitted on.
+
+**Choice.** Search space: learner `method` in {dr, t, x} (section 5), LightGBM `num_leaves` from 7 to 31 and
+`min_child_samples` from 500 to 2,000, 300 trees at learning rate 0.05 with early stopping. Large minimum leaf size (`min_child_samples`) on
+purpose: the effects (a few cases) are small next to the outcome noise (an outlet orders 0 to 300 cases).
+Budget: {{ n.tuner_n_iter }} candidates proposed by TPE (a Bayesian search). Objective: the net value
+(VND per outlet-month) of each candidate's best-arm decisions on 30% of the training outlets, measured with
+doubly robust scores from a separate *referee* model fitted on those outlets only. Rule: among the candidates
+not significantly worse than the best (paired bootstrap, 95%), the simplest wins.
+
+```python
+space = {"method": ["dr", "t", "x"], "num_leaves": ("int", 7, 31), "min_child_samples": ("int", 500, 2000),
+...
+```
+
+{{ table("tuner_summary", cols=["method", "num_leaves", "min_child_samples", "score", "ci_low", "ci_high", "tied", "chosen"],
+  query="status == 'ok'", rename={"score": "net value", "ci_low": "CI low", "ci_high": "CI high"}) }}
+
+**How to read it.** `net value` is the mean net value per validation outlet-month in VND, including the
+outlet's base margin (so all candidates are around 3 million); only differences between rows matter.
+`tied` marks candidates not significantly worse than the best, by a *paired* test (both candidates scored
+on the same validation rows). A candidate with a lower score can be tied while one with a higher score is not,
+when its decisions differ less from the best's. The baselines (all-control, best single arm) are in the
+notebook.
+
+**Finding.** Chosen: `{{ n.method }}` with `num_leaves` {{ n.tuner_best_params.num_leaves }} and
+`min_child_samples` {{ n.tuner_best_params.min_child_samples }}.
+{{ tcount("tuner_summary", "tied == True") }} of the {{ n.tuner_n_iter }} candidates were not significantly worse
+than the best one ({{ tcount("tuner_summary", "tied == True and method == 'dr'") }} `dr`,
+{{ tcount("tuner_summary", "tied == True and method == 't'") }} `t`, {{ tcount("tuner_summary", "tied == True and method == 'x'") }} `x`);
+among them the rule took the one with the fewest leaves. With that many candidates tied, the search cannot
+single out a best one, which is why the rule prefers the simplest of the tied ones.
+
+{{ nbref(6) }}
+
+{{ need(14) }}
+### Part 6. Learners compared on shared nuisances
+
+**Purpose.** A second look at the choice of learner, on all training outlets.
+
+**How.** One fit of the nuisance models (outcome per arm, propensity) shared by the three learners, each
+learner's best-arm policy valued out of fold against the BAU rule.
+
+```python
+cmp_model = aum.MultiArmLearner(methods=("dr", "t", "x"), n_folds=h.N_FOLDS, random_state=0, verbosity=0,
+...
+```
+
+{{ table("methods_oof", rename={"oof_gain_vs_bau": "gain over BAU (VND)", "ci_low": "CI low", "ci_high": "CI high"}) }}
+
+**Finding.** This second look does not agree with the tuner. Here `x` gains
+{{ tval("methods_oof", "oof_gain_vs_bau", method="x") | vnd }} VND over BAU and `dr`
+{{ tval("methods_oof", "oof_gain_vs_bau", method="dr") | vnd }} VND (separate intervals that overlap); the paired difference on the same rows, `x` minus `dr`, is
+{{ n.x_minus_dr_oof.est_difference | vnd }} VND (CI {{ n.x_minus_dr_oof.ci_low | vnd }} to {{ n.x_minus_dr_oof.ci_high | vnd }}); `t` gains least here, and the tuner's lowest-scoring candidate is a `t`. The two looks use different rows (a 30% validation slice against all training outlets, out of fold) and a
+different yardstick (a separate referee against the learner's own nuisances). Here the paired test favours `x`
+significantly; in the tuner every `x` candidate was significantly worse than the best `dr`. So the two looks
+contradict each other, and which learner is better is not settled.
+
+**Decision.** Keep `dr`, the choice of the rule fixed before the run. Switching to `x` because it looks better
+on a second, post hoc comparison would be picking the winner after seeing the scores. But `x` may be the better
+learner; the next refit should compare the two on fresh data (for example the pilot's holdout). The test outlets
+(Part 8) and the overfit report (Part 12) check the chosen model on data neither look used.
+
+**Other settings.** Propensity clip in the doubly robust scores: 0.01. Propensity floor of the policy:
+0.02 (an arm is never chosen where its estimated propensity is below 2%). Costs and value per case as in
+section 2. Capacity: section 7, Part 7. Calibration: tested in Part 10, not applied (see there).
+
+## 7. Results
+
+Each part answers one question. Money is net margin in VND per outlet-month unless stated otherwise.
+
+{{ nbref(7) }}
+
+### Part 7. Policies: best arm, capacity, share sweep
+
+**Purpose.** Turn the predicted effects into one arm per outlet-month, three ways.
+
+**Choices.**
+
+* `best`: the arm with the highest net value `{{ n.value_per_outcome | vnd }} x tau_k - cost_k`; control when
+  no arm is positive. An arm whose estimated propensity is below 0.02 for a row is never chosen there: the data
+  has no evidence of its effect for that kind of outlet.
+* `capacity`: display kits and rep visits are capped per region and month (the caps of section 2, scaled to
+  the test outlets: each region's cap times its share of outlets that are in the test set). Inside each region-month the arms are filled in an order chosen by the analyst with the truth of section 4 in view (the reverse order is checked on the
+  training outlets below):
+  `rep_visit` first, which goes to the rows where its net
+  value is highest, up to the cap; then `display_kit` among the remaining rows; then `price_promo` and
+  `zalo_message`, which have no cap. A row only gets an arm whose estimated net value is
+  positive (`min_gain=0.0`), so a cap is a maximum, not a quota.
+* `top_share`: the same filling, with a share of all rows per arm instead of a number per region-month. The
+  shares come from a sweep over {{ n.sweep_n }} combinations on the training outlets.
+
+```python
+capacity = aum.MultiArmPolicy(value_per_outcome=VALUE, cost=COST, propensity_floor=h.PROPENSITY_FLOOR,
+strategy="capacity", min_gain=0.0,     # never give an arm that loses money
+capacity={4: cap_test[4], 3: cap_test[3], 2: unlimited, 1: unlimited},
+capacity_by="region", period="M", date_col="month")
+```
+
+{{ table("allocation_channel") }}
+
+**How to read it.** Each row is a channel under one policy; the five numbers are the share of its test
+outlet-months (%) given each arm.
+
+**Finding.** Without limits the model gives rep visits to {{ best["%_rep"] | f(1) }}% of rows (mostly bars and
+restaurants) and display kits to {{ best["%_display"] | f(1) }}% (groceries and minimarts), close to the true best
+mix of section 4. The caps cut rep visits to {{ capp["%_rep"] | f(1) }}% and display kits to {{ capp["%_display"] | f(1) }}%, and the
+rows that lose their display kit or rep visit mostly get a price promo instead ({{ capp["%_promo"] | f(1) }}% of
+rows), because the model predicts a promo pays for itself almost everywhere (Part 11 shows that this is too
+optimistic). Modern trade gets no display kit or rep visit under any policy: the propensity floor keeps those
+arms out. Every region looks alike, since the caps are the same share of outlets in every region (the
+notebook shows the allocation by region in Part 7).
+
+{{ table("sweep_top10", cols=["rank", "share_arm_1", "share_arm_2", "share_arm_3", "share_arm_4", "gain", "gain_ci_low", "gain_ci_high", "vs_best", "vs_best_ci_low", "vs_best_ci_high", "selected"],
+  rename={"share_arm_1": "zalo", "share_arm_2": "promo", "share_arm_3": "display", "share_arm_4": "rep", "gain_ci_low": "CI low", "gain_ci_high": "CI high", "vs_best": "vs rank 1", "vs_best_ci_low": "vs 1 CI low", "vs_best_ci_high": "vs 1 CI high"}, size="small") }}
+
+**How to read it.** Each row is one combination of shares (zalo, promo, display, rep). `gain` is its DR value
+over the BAU rule on the training outlets, out of fold. The largest shares tried for display (6%) and rep (8%)
+are the caps. Shares are fractions of rows (0.14 = 14%).
+`vs rank 1` is the paired difference with rank 1 on the same rows, with its 95% CI; a combination is tied with
+rank 1 when that CI includes zero. Because it is paired, a combination with a higher `gain` can be significantly
+worse than rank 1 while one with a lower `gain` is tied.
+
+**Finding.** Every combination is worth *less* than BAU (all gains are negative) because BAU breaks the caps:
+it gets about twice as many display kits and rep visits. Among combinations that respect the caps, the
+best ones use all of them. A share is a maximum: with `min_gain=0.0` an arm is only given where its
+estimated net value is positive, so a zalo share of 20% or 40% gives the same 14% of rows (the duplicate
+rows). The shares in the table are the shares actually given. The selection rule `simplest_tied` keeps the
+combinations whose paired interval against rank 1 (`vs rank 1`) includes zero and, among them,
+takes the one that treats the fewest rows: rank {{ n.sweep_selected.rank }} (zalo
+{{ n.sweep_selected.share_arm_1 | pct(0) }} of rows, promo {{ n.sweep_selected.share_arm_2 | pct(0) }}, control
+{{ n.sweep_selected.share_arm_0 | pct(0) }}). Its share parameters (zalo {{ n.top_share_shares["1"] | pct(0) }}, promo {{ n.top_share_shares["2"] | pct(0) }},
+display {{ n.top_share_shares["3"] | pct(0) }}, rep {{ n.top_share_shares["4"] | pct(0) }}) are maxima: an arm is only given where its net value is
+positive, so on the test outlets (Part 8) the shares actually given differ. Ranks 4, 5 and 10 treat even fewer rows but are significantly worse
+than rank 1.
+
+**Fill order, checked without the truth.** On the training outlets (out of fold, caps scaled to them), the
+capacity policy with rep visits first minus the same policy with display kits first is
+{{ n.fill_order_oof.est_difference | vnd }} VND per outlet-month (CI {{ n.fill_order_oof.ci_low | vnd }} to
+{{ n.fill_order_oof.ci_high | vnd }}); {{ n.fill_order_oof.share_rows_changed | pct(1) }} of rows get a different arm.
+The difference is not significant and its point estimate slightly favours display kits first: the order chosen
+with the truth in view is not shown to matter.
+
+{{ landscape_begin() }}
+
+{{ figure("sweep", wide=True) }}
+
+{{ landscape_end() }}
+
+**Decision.** The capacity policy is the one to deploy if the caps are real. It uses the per-region caps
+directly, while `top_share` only respects them on average. Both are valued on the test outlets in Part 8.
+
+{{ nbref(8) }}
+
+### Part 8. Policy value on the test outlets
+
+**Purpose.** Measure what each policy is worth on the {{ n.n_test_outlets | vnd }} outlets the model never saw.
+
+**How.** A separate DR learner, the *referee*, is fitted on the test rows only (cross-fitted by outlet). Its
+out-of-fold models give a DR score per row and arm (section 5). The value of a policy is the mean over rows of
+`{{ n.value_per_outcome | vnd }} x gamma[row, chosen arm] - cost[chosen arm]`. Decisions come from the model
+trained on the training outlets, so the model never grades itself. Confidence intervals resample whole
+outlets, 500 times.
+
+```python
+referee = aum.MultiArmDRLearner(n_folds=h.N_FOLDS, random_state=1, verbosity=0, group_col="outlet_id",
+...
+```
+
+`model_capacity_promo_rule` is the capacity policy with one business rule added: no price promo where
+`brand_share_est` is above 0.6 (section 9 explains why).
+
+`bau_within_limits` is the BAU rule cut down to the caps: where the rule gives more display kits or rep
+visits than the cap of a region-month, a random subset keeps the arm and the rest get `control`. It is the
+fair baseline for the capacity policy.
+
+{{ table("policy_table", cols=["policy", "est_gain", "ci_low", "ci_high", "true_gain", "gap_to_oracle", "monthly_total_mVND", "%_control", "%_zalo", "%_promo", "%_display", "%_rep"],
+  rename={"est_gain": "est. gain", "ci_low": "CI low", "ci_high": "CI high", "true_gain": "true gain", "gap_to_oracle": "gap to oracle", "monthly_total_mVND": "mVND per month", "%_control": "% ctrl", "%_zalo": "% zalo", "%_promo": "% promo", "%_display": "% disp", "%_rep": "% rep"}, size="small") }}
+
+**How to read it.** `est. gain` is the DR estimate of the net gain over giving every outlet `control`, in
+VND per outlet-month, with its 95% CI. `true gain` is the same quantity from the true effects (synthetic data
+only). `mVND per month` (million VND) scales the estimate to all {{ n.n_outlets | vnd }} outlets. The last five
+columns are the arm mix in %.
+
+**Finding.** Most estimates are below the truth, by up to about 62,000 VND (BAU within the limits is almost
+exact), and far below it for `rep_visit_for_all` ({{ pt["rep_visit_for_all"].est_gain | vnd }} estimated against
+{{ pt["rep_visit_for_all"].true_gain | vnd }} true) and `display_kit_for_all`. These two policies give the arm to
+modern trade stores, which never got it in the data; the referee's scores there are extrapolations.
+Policies that respect the propensity floor (the model's and BAU) are not affected. Among those, the estimated
+order of the groups is the true order (model without limits, then BAU, then the capped policies), but the order
+inside the capped group is not: the estimate puts `model_capacity` last, below `bau_within_limits`, while in truth
+it is well above it. In truth `rep_visit_for_all`
+(true {{ pt["rep_visit_for_all"].true_gain | vnd }}) is worth more than any capped policy, but it would need a rep
+visit for every outlet, far beyond the caps.
+
+{{ table("paired_differences", rename={"est_difference": "est. difference", "ci_low": "CI low", "ci_high": "CI high", "true_difference": "true difference"}) }}
+
+**How to read it.** The difference in value between two policies on the same rows. Because both policies are
+scored on the same outlets, this interval is narrower than the difference of two separate intervals.
+
+**Finding.**
+
+* Model without limits against BAU: {{ pb.est_difference | vnd }} VND (CI {{ pb.ci_low | vnd }} to
+  {{ pb.ci_high | vnd }}), true {{ pb.true_difference | vnd }}.
+* Model within the caps against BAU *within the caps*: {{ pcl.est_difference | vnd }} VND (CI {{ pcl.ci_low | vnd }}
+  to {{ pcl.ci_high | vnd }}), true {{ pcl.true_difference | vnd }}. The truth favours the model, the estimate cannot
+  separate them. The capped policy's estimate falls {{ (capp.true_gain - capp.est_gain) | vnd }} VND short of its true value,
+  about as much as `model_best`'s ({{ (best.true_gain - best.est_gain) | vnd }}): both treat almost every row and share
+  the shift in the control scores (FAQ, section 12). The estimate for BAU within the caps ({{ baucap["%_control"] | f(0) }}% control) is
+  almost exact, so the shift does not cancel in this comparison; this is why the estimated difference misses. Against BAU without caps the capped model
+  loses ({{ pc.est_difference | vnd }}, true {{ pc.true_difference | vnd }}), which only says that BAU uses
+  display kits and rep visits the brand does not have.
+* `model_top_share` respects the caps on average; against its fair baseline, BAU within the caps, it is at
+  {{ n.paired["model_top_share - bau_within_limits"].est_difference | vnd }} VND (CI
+  {{ n.paired["model_top_share - bau_within_limits"].ci_low | vnd }} to
+  {{ n.paired["model_top_share - bau_within_limits"].ci_high | vnd }}; true
+  {{ n.paired["model_top_share - bau_within_limits"].true_difference | vnd }}).
+* The caps cost {{ pbc.est_difference | vnd }} VND per outlet-month (best minus capacity; true
+  {{ pbc.true_difference | vnd }}). This is the price of the limits under this model, an upper bound on what more
+  reps and display kits could earn.
+
+{{ table("agreement", rename={"agreement_%": "model %", "bau_agreement_%": "BAU %"}) }}
+
+**Finding.** The model picks the true best arm for {{ n.agreement["all rows"] | f(1) }}% of test rows, BAU for
+{{ n.agreement_bau["all rows"] | f(1) }}%. The model is weakest in modern trade
+({{ n.agreement.modern_trade | f(1) }}%), where only three arms are allowed and the choice between promo,
+message and nothing depends on the promo effect, the effect it estimates worst.
+
+**Decision.** The model picks the true best arm twice as often as BAU (table above), its rankings for display
+kits and rep visits beat random targeting (Part 9), and the cost of the caps is significant. Without caps the gain
+over BAU is positive but its interval includes zero; the overfit report (Part 12) points the same way but is not
+an independent check. Within the caps the data does not settle it; section 9 sizes a pilot that can.
+
+{{ nbref(9) }}
+
+### Part 9. Uplift curve and Qini per arm
+
+**Purpose.** Check, arm by arm, that the model ranks rows in the right order, separately from the policy.
+
+```python
+qini = ev.qini_by_arm()
+```
+
+{{ landscape_begin() }}
+
+{{ figure("uplift_curve", wide=True) }}
+
+**How to read it.** In each panel the rows are sorted by the model's predicted effect of that arm, highest
+first. The red curve is the DR net gain (VND per outlet-month, averaged over all test rows) of giving the arm to
+the top x% and control to the rest. The grey line is random targeting. A red curve above the grey line means
+the ranking beats random; the Qini is the area between them. The first panel ranks rows by the best arm's
+net value. In the tables below, `qini`, `auuc` and `ate` (the gain if every row got the arm) are in VND per outlet-month.
+
+{{ landscape_end() }}
+
+{{ table("qini", rename={"ranks_better_than_random": "beats random"}) }}
+
+**Finding.** The rankings beat random for `price_promo`, `display_kit` and `rep_visit`, not for
+`zalo_message`, whose true effect is small almost everywhere (about half a case) and hard to rank. For display kits
+the gain peaks when about 30% of rows (the model's top 30%) get the kit and turns negative past about 40%; for
+rep visits it stays near its peak up to about 90%. Beyond that, the remaining rows lose money with the arm; for
+rep visits these last rows are modern trade stores, which the policy never treats.
+
+The table above uses every test row, modern trade included, where the display and rep effects are
+extrapolated. On the {{ n.qini_evidence_rows | vnd }} rows with evidence for every arm (every propensity of
+the referee at least 0.02):
+
+{{ table("qini_evidence", rename={"ranks_better_than_random": "beats random"}) }}
+
+**Finding.** On these rows only `display_kit` and `rep_visit` rank better than random. The promo ranking's
+interval now includes zero (Qini {{ tval("qini_evidence", "qini", arm=2) | vnd }}, CI
+{{ tval("qini_evidence", "qini_ci_low", arm=2) | vnd }} to {{ tval("qini_evidence", "qini_ci_high", arm=2) | vnd }}):
+its advantage on all rows comes mostly from telling modern trade apart from the rest. This matches the promo
+weakness of Parts 10 and 11.
+
+**Decision.** Keep `zalo_message` in the policy (it is cheap and the best-arm policy rarely picks it), but do not
+use the model to target messages. The capped policies do use it: the promo-rule policy sends messages to
+{{ capg["%_zalo"] | f(0) }}% of rows with a ranking that does not beat random, so a real project should give
+messages by a simple rule or at random.
+
+{{ nbref(10) }}
+
+### Part 10. Calibration
+
+**Purpose.** The best-arm policy compares effect sizes across arms in VND, so the *size* of each predicted
+effect matters, not only its order.
+
+**How.** Rows are binned by predicted effect, and in each bin the mean predicted effect is compared with the DR
+observed effect. The slope of observed on predicted is 1 for a well-calibrated arm. Only rows with evidence for
+every arm are used (modern trade is left out). The slopes, the figure and the isotonic calibrator are fitted on
+the training outlets, out of fold ({{ n.evidence_share_train | pct(0) }} of training rows have evidence); the error
+before and after calibration and the effect on decisions are measured on the test outlets
+({{ n.evidence_share_test | pct(0) }} of test rows).
+
+```python
+cal = aum.MultiArmCalibrator(method="isotonic").fit(with_evidence(oof))
+```
+
+{{ table("calibration_slope", cols=["arm", "mean_effect", "slope", "slope_ci_low", "slope_ci_high", "heterogeneity_detected"],
+  rename={"mean_effect": "mean DR effect", "slope_ci_low": "CI low", "slope_ci_high": "CI high", "heterogeneity_detected": "differences detected"}) }}
+
+{{ landscape_begin() }}
+
+{{ figure("calibration", wide=True) }}
+
+**How to read it.** A slope near 1 means the predicted differences between rows are about the right size; near
+0, the predicted differences are not visible in the data; a CI that includes 0 means the data cannot confirm
+that the arm's effect varies between rows.
+
+{{ landscape_end() }}
+
+**Finding.** For `display_kit` (slope {{ tval("calibration_slope", "slope", arm=3) | f(2) }}) and `rep_visit`
+({{ tval("calibration_slope", "slope", arm=4) | f(2) }}) the data confirms that effects vary between rows, but
+the predicted differences are larger than observed. For `zalo_message` and `price_promo` the data cannot confirm
+any variation (CI includes 0) on these rows. On the test outlets the calibrator lowers the binned error for
+display kits and rep visits but raises it for messages (from
+{{ tval("calibration_error", "mae_raw", arm=1) | f(2) }} to {{ tval("calibration_error", "mae_calibrated", arm=1) | f(2) }}
+cases) and slightly for promos ({{ tval("calibration_error", "mae_raw", arm=2) | f(2) }} to
+{{ tval("calibration_error", "mae_calibrated", arm=2) | f(2) }}). The calibrator changes
+{{ n.calibration_changed_share | pct(0) }} of the decisions and the value by {{ n.calibration_gain[0] | vnd }} VND
+(CI {{ n.calibration_gain[1] | vnd }} to {{ n.calibration_gain[2] | vnd }}; true change
+{{ n.calibration_true_gain | vnd }}).
+
+**Decision.** Do not apply the calibration: it does not improve the decisions. The predicted differences between
+rows are too wide for display kits and rep visits, and for promos the model's variation is not confirmed by
+the data at all, although the true promo effect varies strongly with brand share (section 4). That is a model
+weakness, not a calibration problem. (The overfit report of Part 12 shows slopes close to 1 for display kits
+and rep visits, but on all rows, where modern trade's extrapolated effects dominate both sides of the fit;
+it is not evidence of good calibration.)
+
+{{ nbref(11) }}
+
+### Part 11. What drives the effects and the decisions
+
+**Purpose.** Explain the model: which features matter, which change the decisions, how the main drivers move
+the effects, and why one outlet gets its arm.
+
+**Which rows.** {{ n.interpret_rows | vnd }} test rows where every arm has evidence by the trained model's
+propensities (Part 9 used the referee's, hence a slightly different count), sampled down to 20,000. Modern
+trade is left out: its display and rep effects are extrapolations and would dominate every number. The shadow
+features of the noise floor are built from the training outlets (`ds_tr`).
+
+```python
+nf = it.importance_noise_floor(ds_tr)
+di = it.decision_importance(best).sort_values("share_switched", ascending=False).reset_index(drop=True)
+```
+
+{{ table("noise_floor", cols=["feature", "zalo_message vs control", "price_promo vs control", "display_kit vs control", "rep_visit vs control", "overall", "ratio_to_floor", "above_floor"],
+  rename={"zalo_message vs control": "zalo", "price_promo vs control": "promo", "display_kit vs control": "display", "rep_visit vs control": "rep", "ratio_to_floor": "ratio to floor", "above_floor": "above floor"}, size="small") }}
+
+**How to read it.** Mean absolute contribution of each feature to each arm's predicted effect, in cases.
+The floor is computed per arm comparison: the largest importance reached by the 5 shuffled copies of real
+features (pure noise) for that comparison. `ratio to floor` is the feature's largest ratio importance / floor
+over the four comparisons (so it cannot be recomputed from `overall`, which is the sum over the four comparisons); a feature counts as a driver when the ratio
+is at least 1.5 for at least one comparison.
+
+**Finding.** The effects are driven by ordering behaviour (`order_frequency_3m`, `vol_avg_3m`), `channel` and
+`n_coolers`, which matches the true structure. The noise floor fails twice, so it is a screen, not a proof.
+`noise_feature`, pure noise by construction, passes it (ratio
+{{ tval("noise_floor", "ratio_to_floor", feature="noise_feature") | f(2) }}); `competitor_promo_active`, which
+drives the true promo effect, falls below it (ratio
+{{ tval("noise_floor", "ratio_to_floor", feature="competitor_promo_active") | f(2) }}). And `brand_share_est`, which drives the true promo effect, is the
+model's top feature for the promo, but with an importance of only
+{{ tval("noise_floor", "price_promo vs control", feature="brand_share_est") | f(2) }} cases, while the true promo
+effect goes from {{ tval("promo_by_share_truth", "true_effect_cases", brand_share_est="0.0 to 0.2") | f(1) }} to
+{{ tval("promo_by_share_truth", "true_effect_cases", brand_share_est="0.8 to 1.0") | f(1) }} cases across brand share bands (section 4).
+
+{{ table("decision_importance", cols=["feature", "share_switched", "value_drop_dr", "value_drop_dr_ci_low", "value_drop_dr_ci_high", "dr_significant"],
+  rename={"share_switched": "share of decisions switched", "value_drop_dr": "value lost (VND)", "value_drop_dr_ci_low": "CI low", "value_drop_dr_ci_high": "CI high", "dr_significant": "significant"}, size="small") }}
+
+**How to read it.** Every feature, sorted by share of decisions switched. Shuffle one feature across rows, decide again, and measure the share of decisions that
+change and the DR value lost (VND per outlet-month).
+
+**Finding.** Only `n_coolers`, `channel` and `vol_trend_3m` cost significant value when shuffled: they decide
+between display kit (coolers), rep visit (bars and restaurants with falling sales) and the rest.
+`noise_feature` changes {{ tval("decision_importance", "share_switched", feature="noise_feature") | pct(1) }} of
+decisions with no significant value loss, which is not proof that it is harmless. These tests are per feature
+at 5% without adjustment for the 19 features, so about one false "significant" is expected by chance.
+
+{{ figure("rep_vs_trend", width="70%") }}
+
+**Finding.** The rep visit effect is largest where sales are falling (left) and in bars and restaurants, as in
+the truth (section 4).
+
+{{ figure("promo_vs_share_observed", width="80%") }}
+
+{{ table("promo_vs_share_observed", rename={"actual": "observed", "actual_ci_low": "CI low", "actual_ci_high": "CI high"}) }}
+
+**How to read it.** The line is the model's mean predicted promo effect per band of `brand_share_est`, the dots
+the DR observed effect in the same band with its 95% CI. Above the dashed line (2 cases) the promo pays for
+itself.
+
+**Finding.** This is the model's main weakness. The observed promo effect falls from
+{{ tval("promo_vs_share_observed", "actual", bin="[0.03, 0.29]") | f(1) }} cases at low brand share to point
+estimates below zero in the two bands above 0.62 ({{ tval("promo_vs_share_observed", "actual", bin="[0.62, 0.7]") | f(1) }}
+and {{ tval("promo_vs_share_observed", "actual", bin="[0.7, 0.99]") | f(1) }}; both intervals include zero, so these
+bands only show the effect is small, not that it is negative), in line with the truth (section 4). The model's line falls only from
+{{ tval("promo_vs_share_observed", "effect", bin="[0.03, 0.29]") | f(1) }} to
+{{ tval("promo_vs_share_observed", "effect", bin="[0.7, 0.99]") | f(1) }} and stays above break-even
+everywhere. The model has the direction right but shrinks the slope: `brand_share_est` is a noisy survey
+estimate, and the promo effect (a few cases) is small next to the order noise.
+
+{{ figure("explain_row", width="85%") }}
+
+**How to read it.** One outlet-month (outlet {{ n.explain_row_id }}, {{ n.explain_row_month }}; the plot's "Row" label is its position in the sample): a large bar in the {{ n.explain_row_features.region }}, sales falling
+(`vol_trend_3m` {{ n.explain_row_features.vol_trend_3m | f(2) }}), brand share
+{{ n.explain_row_features.brand_share_est | f(2) }}. Each bar is a feature's contribution to the gap in net
+value between the chosen arm and the runner-up. `average difference (all rows)` is the starting point of the
+decomposition: the model's average gap between the two arms over the rows its trees were fitted on. It is
+strongly negative because those rows include modern trade, where the model extrapolates rep visit effects far
+below zero (Part 13); the feature bars then move this outlet from that average to its own gap.
+
+**Finding.** It gets a rep visit rather than a price promo, by {{ tval("explain_row", "contribution", item="total: value gap") | vnd }} VND,
+because it is a bar that orders often; its large volume pulls the other way (the promo pays more on big orders),
+and so does `outlet_size` = large, although in the truth rep visits pay more in large outlets: a mismatch with the truth. The bar and
+order-frequency contributions match the true structure (rep visits pay most in busy on-trade outlets).
+
+**Decision.** Trust the model's choice between display kit, rep visit and the rest; do not trust its promo
+effect sizes until `brand_share_est` is measured better or the promo is restricted by a rule (section 9).
+
+{{ nbref(12) }}
+
+### Part 12. Robustness checks
+
+**Purpose.** Try to break the result. Most checks have a rule for passing; overlap and clip sensitivity are
+judged as stated in the table, and the bootstrap is descriptive (no threshold was fixed in advance).
+
+{{ need(6) }}
+```python
+rc = aum.MultiArmRobustnessChecker(model, ds_tr, method=METHOD, policy=best, n_boot=300, verbosity=0)
+pl = rc.placebo_test(n_shuffles=19, max_rows=40_000)
+aa = rc.aa_test(ds_null)
+of = rc.overfit_report(ds_te)
+```
+
+| Check | Question | Result |
+|----------|----------------|------------------------------------|
+| Overlap | Does every arm have evidence for every kind of outlet? | Display kits and rep visits have propensities below the floor for {{ n.low_overlap_by_channel.modern_trade | pct(0) }} of modern trade rows and for no row of the other channels. The policy keeps them out there. |
+| Clip sensitivity | Does the value depend on the propensity clip? | No: the same value for clips from 0.001 to 0.05. |
+| Stability by month | Does the gain hold every month? (training outlets, out of fold) | The model loses to the best single arm in {{ n.model_loses_month }} of {{ n.n_months }} months. Passed. |
+| Stability by channel | Does the gain hold in every channel? | The model loses to the best single arm in {{ n.model_loses_channel }} channels: bars and restaurants, where giving every outlet a rep visit is significantly better (see below). Failed. |
+| Bootstrap | Do refits on subsamples choose the same arms? | `bootstrap_cate(n_bootstrap=5)` (the checker's `n_boot=300` sets the resamples of the CIs). {{ n.bootstrap_agreement | pct(0) }} of decisions are the same over {{ n.bootstrap_n }} refits on 80% of the rows. Descriptive: no threshold was fixed in advance, and 5 refits is few. |
+| Placebo | With the arm column shuffled, does the gain disappear? | Gain over the best single arm, out of fold, on a refit with 40,000 training rows: real {{ n.placebo.actual_gain | vnd }} VND; the largest of {{ n.placebo.n_successful }} shuffled refits {{ n.placebo_null_max | vnd }} VND. p = {{ n.placebo.p_value }}, the smallest value 19 shuffles allow: the real gain beats every shuffle. Passed. |
+| A/A | With an outcome the arm cannot change (last month's volume), does the model still find a gain? It must not find a significant *positive* gain. | Gain over all-control {{ n.aa.gain_vs_all_control | vnd }} VND (CI {{ n.aa.gain_vs_all_control_ci_low | vnd }} to {{ n.aa.gain_vs_all_control_ci_high | vnd }}) and over the best single arm {{ n.aa.gain_vs_best_single_arm | vnd }} (CI {{ n.aa.gain_vs_best_single_arm_ci_low | vnd }} to {{ n.aa.gain_vs_best_single_arm_ci_high | vnd }}): negative, because on such an outcome every arm only costs money. No positive gain, so {{ "passed" if n.aa.passes else "failed" }}. Against BAU it shows +{{ n.aa.gain_vs_bau_rule | vnd }} VND (CI {{ n.aa.gain_vs_bau_rule_ci_low | vnd }} to {{ n.aa.gain_vs_bau_rule_ci_high | vnd }}), because the A/A model spends little on arms while BAU spends about {{ spend("bau_rule") | float | vnd }} VND per outlet-month: BAU is not a valid baseline for this null check. `model_best` (about {{ spend("model_best") | float | vnd }}), `model_capacity` ({{ spend("model_capacity") | float | vnd }}) and the promo-rule policy ({{ spend("model_capacity_promo_rule") | float | vnd }}) spend more than BAU as written, so the gain of `model_best` over BAU is not a spending effect. The capped policies are compared with `bau_within_limits`, which spends about {{ spend("bau_within_limits") | float | vnd }}: all of them, `model_top_share` ({{ spend("model_top_share") | float | vnd }}) included, spend more. |
+| Overfit | Are in-sample numbers far above the test numbers? | In sample is inflated; out of fold and test are not. See the table below. |
+
+{{ table("stability_channel", cols=["group", "n", "gain_vs_best_single_arm", "gain_vs_best_single_arm_ci_low", "gain_vs_best_single_arm_ci_high", "gain_vs_bau_rule", "gain_vs_bau_rule_ci_low", "gain_vs_bau_rule_ci_high", "model_loses"],
+  rename={"group": "channel", "gain_vs_best_single_arm": "vs best single arm", "gain_vs_best_single_arm_ci_low": "CI low", "gain_vs_best_single_arm_ci_high": "CI high",
+          "gain_vs_bau_rule": "vs BAU", "gain_vs_bau_rule_ci_low": "CI low ", "gain_vs_bau_rule_ci_high": "CI high ", "model_loses": "model loses"}, size="small") }}
+
+**How to read it.** Training outlets, out of fold ({{ n.n_train_rows | vnd }} rows in all). `vs best single arm`
+compares the model with the one arm that is best for the channel as a whole, given to every outlet of it.
+
+**Finding.** In bars and restaurants the model loses to "rep visit for every outlet" in that channel (bars
+{{ tval("stability_channel", "gain_vs_best_single_arm", group="on_trade_bar") | vnd }} VND, restaurants
+{{ tval("stability_channel", "gain_vs_best_single_arm", group="on_trade_restaurant") | vnd }} VND, both intervals
+below zero),
+because it gives a promo to many of them instead (on the test outlets
+{{ tval("allocation_channel", "price_promo", policy="best", channel="on_trade_bar") | f(0) }}% of bar and
+{{ tval("allocation_channel", "price_promo", policy="best", channel="on_trade_restaurant") | f(0) }}% of restaurant
+rows, Part 7): the promo weakness again. In modern trade the
+comparisons are too noisy to judge.
+
+{{ table("overfit", cols=["metric", "in_sample", "out_of_fold", "test", "test_ci_low", "test_ci_high"], rows=[0, 1, 2, 3, 8, 10],
+  rename={"in_sample": "in sample", "out_of_fold": "out of fold", "test_ci_low": "test CI low", "test_ci_high": "test CI high"}, size="small") }}
+
+**How to read it.** The same number computed three ways: on the rows the model was fitted on (in sample), out
+of fold on the training outlets, and on the test outlets. In-sample numbers are always too good; out of fold and
+test should agree within their intervals (they use different outlets).
+
+**Finding.** In sample is far too optimistic (gain over BAU {{ tval("overfit", "in_sample", metric="gain_vs_bau_rule") | vnd }}
+VND); out of fold ({{ tval("overfit", "out_of_fold", metric="gain_vs_bau_rule") | vnd }}) and on the test outlets
+({{ tval("overfit", "test", metric="gain_vs_bau_rule") | vnd }}, CI {{ tval("overfit", "test_ci_low", metric="gain_vs_bau_rule") | vnd }}
+to {{ tval("overfit", "test_ci_high", metric="gain_vs_bau_rule") | vnd }}) the numbers are not inflated. The two differ by about
+{{ (tval("overfit", "test", metric="gain_vs_bau_rule") - tval("overfit", "out_of_fold", metric="gain_vs_bau_rule")) | r3 | vnd }} VND,
+on different outlets; their intervals overlap widely (out of fold {{ tval("methods_oof", "ci_low", method="dr") | vnd }} to {{ tval("methods_oof", "ci_high", method="dr") | vnd }}, Table 10). The test
+number is scored with the training model's own outcome models, so it is not independent of the model; the
+referee's estimate of Part 8 ({{ pb.est_difference | vnd }}, CI includes zero) is the one to rely on. The
+library's automatic labels for these rows ("test gain proven") are left out for this reason.
+
+**Clip sensitivity.** The value is identical for every clip because no propensity of an arm actually given to a
+row is below 0.05: the small propensities belong to arms that modern trade stores never got, and those never
+enter a DR correction term.
+
+**Decision.** The gain is not noise (placebo), the method does not invent gains where none exist (A/A, against
+all-control and the best single arm), the held-out numbers are not inflated (only the in-sample ones are), and the
+value does not depend on the clip. The weak spots are the promo effect and the channels where one arm
+is best almost everywhere.
+
+## 8. What the model got right and wrong
+
+{{ nbref(13) }}
+
+### Part 13. Model against the truth
+
+**Purpose.** Grade the predicted effects on the test outlets against the true effects. Only possible because the
+data is synthetic.
+
+```python
+mvt = h.model_vs_truth(frame_te, truth_te, df_te, meta)
+```
+
+{{ table("model_vs_truth", query="arm in ['display_kit', 'rep_visit', 'price_promo']", rename={"mean_predicted": "mean predicted", "mean_true": "mean true"}, size="small") }}
+
+**How to read it.** Per arm and channel: mean predicted and mean true effect (cases per outlet-month), `bias` =
+predicted minus true, `corr` = correlation between predicted and true effect across rows. The
+`zalo_message` rows are in the notebook; its true effect is about half a case everywhere and the model
+cannot rank it (Part 9).
+
+{{ landscape_begin() }}
+
+{{ figure("pred_vs_true", wide=True) }}
+
+**How to read it.** One dot per test row (4,000 random rows); the dashed line is a perfect model. Orange dots
+are modern trade.
+
+{{ landscape_end() }}
+
+**What the model got right.**
+
+* Display kits in groceries and minimarts: almost no bias and a correlation of
+  {{ tval("model_vs_truth", "corr", arm="display_kit", channel="off_trade_grocery") | f(2) }} and
+  {{ tval("model_vs_truth", "corr", arm="display_kit", channel="off_trade_minimart") | f(2) }} with the true effect.
+* Rep visits outside modern trade: bias below half a case in every channel, correlation
+  {{ tval("model_vs_truth", "corr", arm="rep_visit", channel="off_trade_grocery") | f(2) }} in groceries.
+* The average promo effect: {{ n.model_vs_truth.price_promo.mean_predicted | f(2) }} predicted against
+  {{ n.model_vs_truth.price_promo.mean_true | f(2) }} true.
+
+**What it got wrong, and why.**
+
+* *Modern trade, display kits and rep visits*: predicted {{ n.modern_trade_pred.display_kit | f(0) }} and
+  {{ n.modern_trade_pred.rep_visit | f(0) }} cases, against about +2 and +1 true. These stores never got either
+  arm, so the model extrapolates. This is why the averages over all rows look badly biased
+  ({{ n.model_vs_truth.display_kit.bias | f(1) }} and {{ n.model_vs_truth.rep_visit.bias | f(1) }} cases). It
+  does not change any decision, because the propensity floor never lets the policy use these predictions.
+* *Promo effect across outlets*: correlation only {{ n.model_vs_truth.price_promo.corr | f(2) }}. The model
+  shrinks the dependence on brand share (Part 11), so it cannot tell where the promo loses money.
+* *Rep visits in bars and restaurants*: right on average, but the correlation is only
+  {{ tval("model_vs_truth", "corr", arm="rep_visit", channel="on_trade_bar") | f(2) }} in bars: it misses part of
+  the size x trend interaction.
+
+{{ table("misses", rename={"true_best": "true best", "mean_regret_vnd": "mean regret (VND)"}) }}
+
+**How to read it.** The most common wrong choices of the best-arm policy: the true best arm, the arm chosen, how
+many test rows, and the mean *regret* (true net value lost against the true best arm).
+
+**Finding.** The model chooses a different arm than the truth for {{ n.share_wrong | pct(0) }} of test rows,
+and the mean regret over all rows is {{ n.mean_regret | vnd }} VND per outlet-month. Per wrong choice the regret
+has quartiles {{ n.regret_miss_quantiles["0.25"] | vnd }}, {{ n.regret_miss_quantiles["0.5"] | vnd }} and
+{{ n.regret_miss_quantiles["0.75"] | vnd }} VND. So the misses are mostly not near-ties: half of them cost more than
+{{ n.regret_miss_quantiles["0.5"] | vnd }} VND per outlet-month. The mean over all rows is lower because
+{{ (1 - n.share_wrong) | pct(0) }} of rows have no miss. The most frequent miss is a promo where a rep visit was best, followed by the
+reverse. They come from the promo effect being too flat and the rep effect being poorly ranked in bars.
+
+## 9. Recommendation and rollout
+
+**What to test.** The capacity policy (Part 7): each month, per region, rep visits and display kits go to the
+outlets where the model expects the largest net value, up to the caps; the remaining outlets get a price promo or
+a message only where it is expected to pay.
+
+**Why a pilot and not a switch.** On the test outlets the capacity policy is estimated at
+{{ pcl.est_difference | vnd }} VND per outlet-month against BAU within the same caps (CI {{ pcl.ci_low | vnd }} to
+{{ pcl.ci_high | vnd }}). The truth says {{ pcl.true_difference | vnd }} VND, about
+{{ (pcl.true_difference * n.n_outlets) | mvnd }} million VND per month over {{ n.n_outlets | vnd }} outlets, but a real
+project would only see the estimate, and it does not separate the two policies. A pilot reduces this
+uncertainty but, at this scale, does not remove it (see the power table below).
+
+**One business rule on top.** No price promo where `brand_share_est` is above 0.6 (rows with a missing share are
+not affected). Why: the DR observed promo effect is small in the two bands above 0.62, with point estimates below
+zero (Part 11), while the model still predicts that the promo pays there. The cutoff 0.6 is the analyst's choice,
+made with both those observed bands and the truth of section 4 in view, so the policy with the rule is
+illustrative rather than a tested design; a real project would only have the bands.
+The fill order of the capacity policy (rep visits first, then display kits) is also an analyst's choice; Part 7
+compares it with display kits first on the training outlets (not significant). It was set with the true values of section 4 in view (rep visits are the most
+valuable arm in on-trade), which a real project would not have; a real project would set it from the estimated
+net values. The rule was valued on the test
+outlets (`model_capacity_promo_rule`, Part 8): {{ capg.est_gain | vnd }} VND per outlet-month (true
+{{ capg.true_gain | vnd }}), against {{ capp.est_gain | vnd }} (true {{ capp.true_gain | vnd }}) without it; the
+difference is {{ pgc.est_difference | vnd }} VND (CI {{ pgc.ci_low | vnd }} to {{ pgc.ci_high | vnd }}; true
+{{ pgc.true_difference | vnd }}). Against BAU within the caps the guarded policy is at {{ pgl.est_difference | vnd }}
+VND (CI {{ pgl.ci_low | vnd }} to {{ pgl.ci_high | vnd }}; true {{ pgl.true_difference | vnd }}). The rule improves
+the policy in truth and in the estimate, but neither difference is significant on the test outlets, so it is a
+low-risk guard rather than a proven gain. It is meant for the pilot, to drop once a refit gets the slope right.
+
+The bands that suggested the cutoff come from test rows, and the rule was then valued on the same test outlets,
+so the rule's test estimates above are optimistic: the cutoff was chosen where it looked best on those rows.
+The notebook's Part 11 therefore also computes the observed promo effect by band on the training outlets (out-of-fold DR scores, rows
+with evidence for every arm), which did not value the policy:
+
+{{ table("promo_cutoff_train", rename={"observed_effect": "observed effect (cases)", "ci_low": "CI low", "ci_high": "CI high"}) }}
+
+**Finding.** On the training outlets the promo pays clearly below a share of 0.45 (about 5 cases), is at
+break-even between 0.45 and 0.6 ({{ tval("promo_cutoff_train", "observed_effect", band="(0.45, 0.6]") | f(1) }} cases),
+and is at or below break-even above 0.6 ({{ tval("promo_cutoff_train", "observed_effect", band="(0.6, 0.7]") | f(1) }}
+and {{ tval("promo_cutoff_train", "observed_effect", band="(0.7, 1.0]") | f(1) }} cases, both intervals include 2).
+So the training outlets support a cutoff near 0.6, but only weakly: they do not show that the promo loses money
+above it, only that it does not clearly pay.
+
+**How large a difference can a pilot detect?**
+
+{{ table("pilot_power", rename={"outlets_per_side": "outlets per side", "sd_per_outlet": "sd per outlet", "se_difference": "SE of difference", "mde_80_power": "MDE (80% power)", "r2_adjustment": "R2 of adjustment"}) }}
+
+**How to read it.** `sd per outlet` is the spread over outlets of an outlet's mean monthly gross margin over the pilot
+window (VND), from the panel itself (arm costs are fixed per arm, so they add no noise). `raw` compares the two sides' means; `adjusted` first removes what the
+pre-pilot features (`vol_avg_3m`, `order_frequency_3m`, `n_coolers`, channel) explain, which is the R2 column.
+`MDE = 2.8 x SE`, the usual 80% power and 5% two-sided level.
+
+**Finding.** A raw comparison over three months detects only about
+{{ tval("pilot_power", "mde_80_power", months=3, analysis="raw") | vnd }} VND per outlet-month. The adjusted
+analysis halves that ({{ tval("pilot_power", "mde_80_power", months=3, analysis="adjusted") | vnd }}), and six
+months help little ({{ tval("pilot_power", "mde_80_power", months=6, analysis="adjusted") | vnd }}), because an
+outlet's level persists from month to month. The true gap within the caps is {{ pcl.true_difference | vnd }} VND for the capacity policy
+and {{ pgl.true_difference | vnd }} VND for the policy with the promo rule, which the pilot would test: both below
+every MDE. With 3 months and the adjusted analysis (SE {{ se3 | vnd }}), the power is about
+{{ (100 * phi(pcl.true_difference / se3 - 1.96)) | round | int }}% at {{ pcl.true_difference | vnd }} and about
+{{ (100 * phi(pgl.true_difference / se3 - 1.96)) | round | int }}% at {{ pgl.true_difference | vnd }}. Reaching 80% power
+at about 50,000 VND would need about
+{{ (side_n * ((tval("pilot_power", "mde_80_power", months=3, analysis="adjusted") / 50000) ** 2)) | r3 | vnd }} outlets
+per side, more than the outlet base. It is still worth running: it caps the risk (stop if the model is significantly worse), it removes the dependence on the BAU
+history, and its holdout gives the clean data a better model needs. Use the adjusted analysis.
+
+**How to roll out.**
+
+1. *Split the pilot at random.* Half of the outlets (chosen at random, whole outlets, within each region so the
+   caps split evenly) follow the model within the caps, the other half BAU within the caps: about
+   {{ tval("pilot_power", "outlets_per_side", months=3, analysis="raw") | vnd }} outlets per side after the holdout.
+   The two sides are different outlets, so the comparison is less precise than the paired one of Part 8.
+   {{ ref("tab:pilot_power") }} gives the smallest true difference the pilot detects with 80% probability.
+2. *Keep a random holdout.* About 10% of outlets, drawn at random once for the whole pilot and kept out of the
+   two sides, get a random arm every month among the arms allowed for them (the same design as the trade test). This keeps the propensities known, lets the effects be
+   re-estimated, and gives an honest measurement of the policy against BAU each month.
+3. *Look after months 1 and 2, decide after month 3*, with the adjusted analysis of {{ ref("tab:pilot_power") }}:
+   the two sides are randomised, so their observed net margin per outlet is compared directly, after removing
+   what the pre-pilot features explain (no DR scores needed). The power figures above are for this analysis. At the two interim looks,
+   stop only if the 99.9% interval of the difference lies entirely below zero (a Haybittle-Peto rule: so strict a
+   level keeps the chance of a false stop low and leaves the final 5% analysis, and the MDE of
+   {{ ref("tab:pilot_power") }}, almost unchanged). The final decision uses the 95% interval and a margin fixed in
+   advance by the business.
+4. *Log for every outlet-month:* the features at decision time, the predicted effect and net value of every
+   arm, the arm chosen, whether the outlet was in the holdout, the capacity used, and the outcome. Without the
+   predictions and the holdout flag the next model cannot be evaluated.
+5. *Refit every quarter*, or earlier if the costs, the caps or the mix of outlets change, and rerun the checks
+   of Part 12 before each switch.
+6. *Weigh more reps and display kits.* The caps cost {{ pbc.est_difference | vnd }} VND per outlet-month (Part 8),
+   CI {{ pbc.ci_low | vnd }} to {{ pbc.ci_high | vnd }}: an estimated upper bound of what more capacity could earn under this model.
+
+## 10. Limitations and threats to validity
+
+* **Synthetic data.** The outlets, effects, costs and caps were simulated (section 4). The case study shows how
+  the method behaves when the truth is known; it says nothing about the size of effects in a real market. With
+  real data there is no truth, and sections 4 and 8 could not be written.
+* **A simple effect structure.** Each arm's effect depends on a few features through smooth formulas, and an
+  arm's direct effect lasts only the month it is given (it changes later months only through the history features). Real effects can be weaker and noisier, and a display kit stays in the
+  outlet for more than one month.
+* **Fixed promo cost.** The promo costs a fixed {{ n.cost["2"] | vnd }} VND per outlet-month. A real "buy 10, get
+  1 free" costs more where more is ordered, which would make the promo even less attractive in large, loyal
+  outlets.
+* **Simple caps.** One number per region and month. Real rep capacity depends on routes and travel time.
+* **No evidence where an arm was never given.** Modern trade stores never got display kits or rep visits. The
+  policy does not use the model's effects there, but the question "would a rep visit help a supermarket?" stays
+  open until it is tested.
+* **Noisy inputs.** `brand_share_est` is a noisy survey estimate, missing for 8% of rows. The model cannot be
+  better than its inputs, which is the main reason for its promo weakness.
+* **Choice of learner.** The tuner and the second comparison (Part 6) rank `dr` and `x` differently, each
+  significantly, so which learner is better is not settled; the next refit should compare them on fresh data.
+* **One data draw, one split.** The intervals, the bootstrap and the placebo test measure part of the
+  uncertainty, not all of it.
+* **No interference.** A promo in one outlet could take volume from the outlet next door; the method assumes
+  each outlet's orders depend only on its own arm.
+* **Single machine training.** Training ran on one laptop ({{ n.n_train_rows | vnd }} rows); scoring at larger
+  scale (for example with PySpark) was not tested here.
+
+## 11. Reproduce it
+
+{{ nbref(14) }}
+
+### Part 14. Reproduce
+
+The modelling library used here is private and not part of the repository, so the notebook cannot be re-run
+from the repository; it is published with every output saved. The method is described in `method/README.md`.
+What runs without the library:
+
+```bash
+python3.9 -m venv .venv && source .venv/bin/activate      # at the repository root
+pip install -r case_study_beer/requirements.txt
+cd case_study_beer
+pytest                                    # the data generator follows data_rules.md
+python -m data_gen.generate --out data/   # the synthetic data as CSV / JSON
+python build_case_study.py                # both reports from outputs/ (pandoc, tectonic)
+```
+
+With the library installed, `python build_case_study.py --execute` re-runs the notebook first.
+
+**Seeds.** Data `random_state=42`, outlet split seed {{ n.split_seed }}, learners and tuner `random_state=0`,
+referee `random_state=1`, bootstrap seed 0.
+
+**Run.** {{ (n.runtime_seconds / 60) | f(0) }} minutes for the whole notebook on a laptop
+({{ n.environment.machine }}).
+
+| Package | Version |
+|---|---|
+{%- for k in ["python", "auto_uplift_multi_arms", "numpy", "pandas", "scikit-learn", "lightgbm", "optuna", "scipy", "matplotlib"] %}
+| {{ k }} | {{ n.environment[k] }}{{ " (private)" if k == "auto_uplift_multi_arms" else "" }} |
+{%- endfor %}
+
+Every number in this document is read from `outputs/case_study_numbers.json` and `outputs/tables/`, written by
+the notebook run; none is typed by hand.
+
+## 12. FAQ
+
+**Why not just compare outlets that got an action with outlets that did not?**
+Because the BAU rule chose who got what. It gave display kits to outlets with coolers and rep visits to large
+bars, which order differently anyway. Section 3 shows the raw comparison says a display kit *loses* cases when
+it truly adds them.
+
+**Why not run an A/B test for each action and stop there?**
+An A/B test gives the average effect of an action. The decision here is per outlet: the same rep visit gains
+9 cases in a bar and 1 in a supermarket in the simulation's truth (section 4; real data has no rep visits in
+supermarkets). The trade test rows are the A/B test; the model uses them, with the
+BAU rows, to estimate who gains what.
+
+**What is the money result, in one line?**
+Without caps, the model earns {{ pb.est_difference | vnd }} VND per outlet-month more than BAU (true
+{{ pb.true_difference | vnd }}). Within the caps, the truth says {{ pcl.true_difference | vnd }} VND more than BAU within
+the same caps, but the estimate ({{ pcl.est_difference | vnd }}, CI {{ pcl.ci_low | vnd }} to {{ pcl.ci_high | vnd }})
+cannot confirm it; hence the pilot of section 9.
+
+**Why is the capped model estimated below BAU in {{ ref("tab:paired_differences") }}?**
+The estimate is not significant (the CI includes zero), but it is also below in truth
+({{ n.paired["model_capacity - bau_rule"].true_difference | vnd }} VND), because BAU breaks the caps: it uses about twice as many display kits and rep visits as the brand has. The fair
+comparison is with BAU cut down to the same caps. There the truth favours the model and the estimate is
+inconclusive.
+
+**How do you know the model's estimate of the gain is honest?**
+The model is trained on {{ n.n_train_outlets | vnd }} outlets and graded on {{ n.n_test_outlets | vnd }} others, by
+a separate referee model fitted only on those outlets. The placebo test shows a model fitted on shuffled arms
+finds almost nothing, and on this synthetic data the true gains are known and fall inside the intervals for the
+policies that respect the propensity floor (not for `display_kit_for_all` and `rep_visit_for_all`, see Part 8).
+
+**Why are the estimated gains lower than the true gains?**
+Every gain is measured against the same estimate of "everyone gets control". An error in the control scores
+only matters for the rows a policy does not give control, so it shifts mostly the gains of policies that treat almost every row: `model_best` (3% control) is about
+62,000 VND low, while `bau_within_limits` (61% control) is almost exact. The shift is not simply proportional
+to the share treated (`bau_rule` and `model_top_share` are about 38,000 and 34,000 VND low). Two policies that treat almost the same rows share this error, which is why best minus capacity
+is almost exact. The capped policy treats almost every row and BAU within the caps does not, so the shift does not
+cancel in their comparison, which is why it misses (Part 8). The true
+gains of the model and BAU policies are all inside their intervals.
+
+**Which outlets get a rep visit?**
+Bars and restaurants that order often, especially when sales are falling (Part 11). Display kits go to groceries
+and minimarts with coolers.
+
+**Why does the model choose so many price promos within the caps?**
+Once the caps on display kits and rep visits are reached, the promo is the arm left with the largest predicted
+net value. The model predicts a promo pays almost everywhere, which is too optimistic where the brand share is
+high. Hence the extra rule in section 9.
+
+**What happens in supermarkets (modern trade)?**
+Display kits and rep visits were never used there, so there is no evidence of their effect. The policy chooses
+only between nothing, a message and a promo there.
+
+**Is `noise_feature` a problem?**
+It passes the noise floor and switches {{ tval("decision_importance", "share_switched", feature="noise_feature") | pct(1) }} of
+decisions, but loses no significant value (Part 11). The floor is a screen; decision
+importance is the stronger check. A real project would remove it on business grounds.
+
+**Why not apply the calibration?**
+It changed {{ n.calibration_changed_share | pct(0) }} of the decisions and did not improve their value on the test
+outlets (Part 10).
+
+**How often should the model be refitted?**
+Every quarter, or when costs, caps or the outlet base change, with the random holdout of section 9 kept running
+so each refit has fresh unbiased data.
+
+**Can I re-run the notebook?**
+Not from the repository: the modelling library is private. The notebook is published with every output; the
+data generator, its tests and the PDF build run on their own (section 11).

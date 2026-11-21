@@ -1,0 +1,329 @@
+{#- Source of case_study_business.pdf: the short report for business readers. Every number comes from
+    outputs/ (n = case_study_numbers.json, tval = one cell of an exported table). The full method and every
+    check are in technical.md.j2. Build: python build_case_study.py -#}
+{%- set pt = n.policy_table -%}
+{%- set best = pt["model_best"] -%}
+{%- set capp = pt["model_capacity"] -%}
+{%- set capg = pt["model_capacity_promo_rule"] -%}
+{%- set bau = pt["bau_rule"] -%}
+{%- set baucap = pt["bau_within_limits"] -%}
+{%- set orc = pt["oracle (true best arm)"] -%}
+{%- set pb = n.paired["model_best - bau_rule"] -%}
+{%- set pbc = n.paired["model_best - model_capacity"] -%}
+{%- set pcl = n.paired["model_capacity - bau_within_limits"] -%}
+{%- set pgl = n.paired["model_capacity_promo_rule - bau_within_limits"] -%}
+{%- set pgr = n.paired["model_capacity_promo_rule - model_capacity"] -%}
+{%- set N = n.n_outlets -%}
+{%- set NAME = {"0": "No action", "1": "App message", "2": "Price promo", "3": "Display kit", "4": "Rep visit"} -%}
+{%- set mde3 = tval("pilot_power", "mde_80_power", months=3, analysis="adjusted") -%}
+{%- set side = tval("pilot_power", "outlets_per_side", months=3, analysis="raw") -%}
+{%- set se = tval("pilot_power", "se_difference", months=3, analysis="adjusted") -%}
+{%- set margin = -30000 -%}
+{%- set pw_g = phi(pgl.true_difference / se - 1.96) -%}
+{%- set pw_c = phi(pcl.true_difference / se - 1.96) -%}
+{%- set sw_g = phi((pgl.true_difference - margin - 1.96 * se) / se) -%}
+{%- set sw_0 = phi((0 - margin - 1.96 * se) / se) -%}
+{%- set qd = n.qini_evidence | selectattr("arm", "equalto", 3) | first -%}
+{%- set qr = n.qini_evidence | selectattr("arm", "equalto", 4) | first -%}
+{%- set kit_be = n.cost["3"] / n.value_per_outcome -%}
+{%- macro spend(p) -%}{{ ((pt[p]["%_zalo"] * n.cost["1"] + pt[p]["%_promo"] * n.cost["2"] + pt[p]["%_display"] * n.cost["3"] + pt[p]["%_rep"] * n.cost["4"]) / 100) | round(-3) }}{%- endmacro -%}
+## 1. The decision on one page
+
+{{ box_begin("The question") }}
+
+Each month the trade team gives each of {{ N | vnd }} beer outlets one action: no action, an app message, a
+price promo, a display kit or a sales rep visit. Display kits and rep visits are limited. **Can a model that
+predicts the effect of each action for each outlet choose better than today's rule (business as usual, BAU), and how should we test
+it?**
+
+{{ box_end() }}
+
+**What we found** on {{ n.n_test_outlets | vnd }} outlets the model never saw. Money is extra net margin per outlet
+per month, in VND (gross margin of the extra cases minus the cost of the action).
+
+* **In the simulation, the model chooses the right action twice as often as BAU** (both without limits). It picks the truly best
+  action for {{ n.agreement["all rows"] | f(0) }}% of outlet-months, against {{ n.agreement_bau["all rows"] | f(0) }}%
+  for BAU. This can be checked only because the data is simulated. What the data itself shows is that the model
+  ranks outlets for display kits and rep visits better than chance.
+* **The limits on display kits and rep visits are expensive.** Without them the model would earn
+  about {{ pbc.est_difference | r3 | vnd }} VND more per outlet-month than within them (about
+  {{ (best.est_gain - capg.est_gain) | r3 | vnd }} more than with the promo rule), about {{ (pbc.est_difference * N) | mvnd }} million VND
+  per month across all outlets. This result is clear. It counts the cost of each extra kit and visit, not fixed
+  costs such as more reps or a larger kit stock. It assumes kits for about {{ best["%_display"] | f(0) }}% and visits for about
+  {{ best["%_rep"] | f(0) }}% of outlet-months (6% and 8% today); less capacity earns less.
+* **Within today's limits, the data cannot show a gain over BAU yet.** The simulation knows that the model with
+  the promo rule earns {{ pgl.true_difference | vnd }} VND more per outlet-month than BAU held to the same limits.
+  A real project would not know this. It would see only the estimate, {{ pgl.est_difference | vnd }} VND (range
+  {{ pgl.ci_low | vnd }} to {{ pgl.ci_high | vnd }}), which is close to zero.
+* **One known weakness: price promos.** The model believes a promo pays everywhere. The data suggests it
+  does not pay where our brand already has a large share (above about 60%) of the outlet's beer volume. A simple rule should reduce the
+  damage: no promo where our brand share is above 60%.
+
+**What we recommend.**
+
+1. Run a randomised pilot for 3 months. 10% of outlets get a random action. The other outlets are split at random
+   into two halves of about {{ side | vnd }}: one half follows the model within the limits, with the promo rule;
+   the other follows BAU within the same limits. The model half needs about {{ ((spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) * side) | mvnd }} million VND
+   more action budget per month than BAU (about {{ ((spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) * side * 3) | mvnd }} million over the 3 months), mostly for
+   promos. The estimated gains are already net of this spending, but the budget needs approval.
+2. Expect a useful but not certain answer. If the simulated gain is real, the pilot shows a clear difference
+   only about {{ (100 * pw_g) | round | int }} times in 100. The decision therefore uses a switch rule: switch to the
+   model if its estimated gain is positive and the low end of its range is above a margin set in advance by the
+   business (for example {{ margin | vnd }} VND per outlet-month). If the simulated gain is
+   real, this switches about {{ (10 * sw_g) | round | int }} times in 10; if the model is no better than BAU, it still
+   switches about {{ (10 * sw_0) | round | int }} times in 10. Real effects may be weaker. Stop early only if the
+   model is far worse than BAU at the checks after months 1 and 2.
+3. Build a business case for more rep capacity or display kits: the limits are the largest lever found.
+
+
+## 2. The business problem
+
+**Who decides what.** The trade marketing team decides once a month, for each outlet, which single action it
+gets that month. Outlets are bars, restaurants, groceries, minimarts and modern trade stores (supermarket and
+convenience chains) in five regions.
+
+**The five actions** and what they cost per outlet per month (illustrative):
+
+| Action | What it is | Cost (VND) | Limited? | Pays above |
+|-------------|-------------------------------------|---------|--------|-----------|
+{%- for k in ["0", "1", "2", "3", "4"] %}
+| {{ NAME[k] }} | {{ n.arm_descriptions[k] }} | {{ n.cost[k] | vnd }} | {{ "yes" if k in n.capacity_full else "no" }} | {{ "" if k == "0" else ((n.cost[k] / n.value_per_outcome) | f(2 if n.cost[k] < n.value_per_outcome else 1)) ~ " cases" }} |
+{%- endfor %}
+
+Each extra case of beer ordered brings {{ n.value_per_outcome | vnd }} VND of gross margin. An action pays for
+itself (its break-even) when it adds more cases than its cost divided by this margin: the last column. The limits
+are set per region and month.
+
+**Why the best action per outlet is not obvious.**
+
+* Costs differ a lot, so the action with the largest effect is not always the one that earns most. A display kit
+  adds about {{ n.naive.display_kit.true_average_effect | f(1) }} cases on average, below its break-even of
+  {{ kit_be | f(1) }}: it pays only when it goes to the right outlets.
+* The limits allow display kits for about 6% and rep visits for about 8% of a region's outlets each month.
+* The same action works very differently by outlet: a rep visit pays in a busy bar with falling sales and does
+  little in a small grocery with steady sales; a display kit pays in a grocery with coolers.
+* Some actions lose money: a promo where our brand already dominates mostly discounts cases the outlet would have
+  bought anyway.
+* Past data is not a clean experiment: part of past actions followed the BAU rule, so simply comparing outlets
+  that got an action with those that did not gives the wrong answer. In the data, outlets that got a display kit
+  ordered *fewer* cases than others, although a display kit truly adds cases.
+
+## 3. What we did
+
+1. **Data.** {{ n.n_outlets | vnd }} outlets over {{ n.n_months }} months ({{ n.n_rows | vnd }} outlet-months).
+   {{ n.randomised_share | pct(0) }} of the actions came from a randomised trade test, the rest from the BAU rule.
+2. **Model.** For every outlet-month the model estimates how many extra cases each action would bring, from the
+   outlet's profile and recent orders. Net value = extra cases x {{ n.value_per_outcome | vnd }} VND minus the cost.
+3. **Decision rule.** Give each outlet the action with the highest expected net value, no action if none pays.
+   With the limits: each month and region, rep visits and display kits go to the outlets where they are worth most,
+   up to the limit; the other outlets get a promo or a message only where it pays.
+4. **Grading on unseen outlets.** The model was built on {{ n.n_train_outlets | vnd }} outlets and graded on
+   {{ n.n_test_outlets | vnd }} other outlets. Each outlet-month received only one action, so nobody saw what the
+   other actions would have done there. A second, separate model fills in these missing outcomes for the grading;
+   because it is separate, the model does not grade its own predictions. Each result comes with a range (95%
+   confidence interval).
+5. **Checks against the truth.** Because the data is simulated, the true value of every decision is known. Each
+   estimate is shown next to the true value, so the reader can see where the method is right and where it is not.
+
+## 4. What the model is worth
+
+{{ need(16) }}
+**Value of each way of choosing**, extra net margin over giving no action, VND per outlet-month, on the test
+outlets:
+
+| Way of choosing | Estimated | Range (95%) | True | All outlets, million VND per month |
+|------------------------------|------------|----------------------|------------|------------|
+| Model, no limits | {{ best.est_gain | vnd }} | {{ best.ci_low | vnd }} to {{ best.ci_high | vnd }} | {{ best.true_gain | vnd }} | {{ best.monthly_total_mVND | vnd }} |
+| BAU rule as written | {{ bau.est_gain | vnd }} | {{ bau.ci_low | vnd }} to {{ bau.ci_high | vnd }} | {{ bau.true_gain | vnd }} | {{ bau.monthly_total_mVND | vnd }} |
+| Model, limits + promo rule | {{ capg.est_gain | vnd }} | {{ capg.ci_low | vnd }} to {{ capg.ci_high | vnd }} | {{ capg.true_gain | vnd }} | {{ capg.monthly_total_mVND | vnd }} |
+| Model within limits | {{ capp.est_gain | vnd }} | {{ capp.ci_low | vnd }} to {{ capp.ci_high | vnd }} | {{ capp.true_gain | vnd }} | {{ capp.monthly_total_mVND | vnd }} |
+| BAU held to the limits | {{ baucap.est_gain | vnd }} | {{ baucap.ci_low | vnd }} to {{ baucap.ci_high | vnd }} | {{ baucap.true_gain | vnd }} | {{ baucap.monthly_total_mVND | vnd }} |
+| Best possible (truth) | | | {{ orc.true_gain | vnd }} | |
+
+*How to read it.* "Estimated" is what a real project would see; "True" is known only because the data is
+simulated. The totals scale the estimate to all {{ N | vnd }} outlets. As written, the BAU rule hands out more
+display kits and rep visits than the limits allow, so it cannot be compared fairly with a model that respects
+them. "BAU held to the limits" trims its extra kits and visits at random down to the limits. To compare two ways of
+choosing, use the head-to-head table below: it measures both on the same outlets, so it is more precise.
+
+{{ need(14) }}
+**Head-to-head comparisons** on the same outlets, VND per outlet-month:
+
+| Comparison | Estimated | Range (95%) | True | Clear? |
+|-----------------------------------|------------|----------------------|------------|--------|
+| Model minus BAU, no limits | {{ pb.est_difference | vnd }} | {{ pb.ci_low | vnd }} to {{ pb.ci_high | vnd }} | {{ pb.true_difference | vnd }} | {{ "yes" if pb.ci_low > 0 else "no" }} |
+| Model minus BAU, within limits | {{ pcl.est_difference | vnd }} | {{ pcl.ci_low | vnd }} to {{ pcl.ci_high | vnd }} | {{ pcl.true_difference | vnd }} | {{ "yes" if pcl.ci_low > 0 else "no" }} |
+| Same, model with the promo rule | {{ pgl.est_difference | vnd }} | {{ pgl.ci_low | vnd }} to {{ pgl.ci_high | vnd }} | {{ pgl.true_difference | vnd }} | {{ "yes" if pgl.ci_low > 0 else "no" }} |
+| Cost of the limits (model) | {{ pbc.est_difference | vnd }} | {{ pbc.ci_low | vnd }} to {{ pbc.ci_high | vnd }} | {{ pbc.true_difference | vnd }} | {{ "yes" if pbc.ci_low > 0 else "no" }} |
+
+"Clear?" is yes when the whole range lies above zero.
+
+**What is shown, and what is not.**
+
+* *Shown by the data:* the model ranks outlets for display kits and rep visits better than chance (its
+  advantage over random targeting is positive, with a range above zero, for both; details in the technical report); the limits cost about {{ pbc.est_difference | r3 | vnd }} VND per outlet-month; and when the
+  actions are shuffled at random, the model's gain over giving every outlet the same best action
+  ({{ n.placebo.actual_gain | r3 | vnd }} VND in this check) falls to at most about {{ n.placebo_null_max | r3 | vnd }} VND in
+  {{ n.placebo.n_successful }} shuffled tries, so it is not
+  finding patterns in noise.
+* *Shown only by the simulation:* the model picks the right action twice as often as BAU (both without limits).
+* *Not shown:* that the model beats BAU when both respect the limits. The simulation says it does, but the two
+  estimates in the table are {{ (pgl.true_difference - pgl.est_difference) | vnd }} to
+  {{ (pcl.true_difference - pcl.est_difference) | vnd }} VND below the truth, and both ranges include zero.
+  Without limits the estimate is positive ({{ pb.est_difference | vnd }}) but its range just includes zero. The pilot
+  compares the actual orders of the two halves directly, so this shortfall does not carry over to it.
+* *Failed check:* in bars and restaurants the model does worse than simply giving every outlet a rep visit
+  ({{ tval("stability_channel", "gain_vs_best_single_arm", group="on_trade_bar") | r3 | vnd }} and
+  {{ tval("stability_channel", "gain_vs_best_single_arm", group="on_trade_restaurant") | r3 | vnd }} VND per outlet-month, both ranges below
+  zero), likely because it gives many of them promos: the promo weakness again.
+* *Spending:* the model spends more on actions than BAU, not less: about {{ spend("model_best") | float | vnd }} VND per
+  outlet-month against {{ spend("bau_rule") | float | vnd }} for BAU as written, and {{ spend("model_capacity_promo_rule") | float | vnd }}
+  (model with the promo rule) against {{ spend("bau_within_limits") | float | vnd }} within the limits. Its gains are net of this extra spending.
+
+**Where the actions go.** Without limits the model gives rep visits mostly to bars and restaurants and display
+kits to groceries and minimarts, in line with the truth. Modern trade stores never get a display kit or a rep
+visit: these were never tried there, so there is no evidence either way. Under the limits, the outlets that lose
+their kit or visit mostly get a price promo: {{ capp["%_promo"] | f(0) }}% of all outlet-months get a promo under
+the model within limits, {{ capg["%_promo"] | f(0) }}% with the promo rule, against {{ baucap["%_promo"] | f(0) }}%
+under BAU held to the limits. This is where the promo weakness matters.
+
+{{ figure("business_promo_by_share", width="84%", caption="The price promo weakness, by our brand's share of the outlet's beer volume. Orange: the model's predicted extra cases from a promo. Blue: what the data shows, with its 95% range. Above the dashed line (2 cases) the promo pays for its cost.", source=False) }}
+
+{{ need(10) }}
+**The main weakness.** Where our brand share is lowest, a promo adds up to about
+{{ tval("promo_vs_share_observed", "actual", bin="[0.03, 0.29]") | f(0) }} cases; in the middle it adds about 1.5 to
+5, with one band below break-even; above a share of about 60% the data suggests it does not pay. The model's line is much flatter and stays above
+break-even everywhere, so it gives promos where they do not pay. Two likely causes: brand share is a rough survey
+estimate, and the promo effect is small next to normal swings in orders. Until it is measured better, the rule "no promo above a share of 60%" should protect the
+margin. The 60% cutoff was chosen with the simulation's truth in view and read from the outlets used for grading, so the
+value of the rule shown here is illustrative; on the outlets used for building the model the picture is the same
+but weaker: above 60% a promo adds about 1 to 2 cases, at or below its break-even. Outlets without a survey estimate are not affected by the rule (promo allowed). The order in which limited actions are filled (rep visits first, then display kits) was also
+set with the truth in view; a check of the other order without the truth found no clear difference. In the simulation the
+rule adds {{ pgr.true_difference | vnd }} VND per outlet-month; the data cannot confirm it yet (estimated
+{{ pgr.est_difference | vnd }}, range {{ pgr.ci_low | vnd }} to {{ pgr.ci_high | vnd }}).
+
+## 5. Recommendation: a pilot
+
+**What to test.** Each month and region, give rep visits and display kits to the outlets where the model expects
+the most value, up to the limits; give the remaining outlets a promo or a message only where it is expected to pay
+and, for the promo, only where our brand share is 60% or below.
+
+**How.**
+
+1. *Random groups.* A fixed 10% of outlets, drawn at random once, get a random action each month, drawn among
+   the actions still available: kits and visits only up to this group's share of the limits. The other outlets are split at random within
+   each region into two halves of about {{ side | vnd }}: one follows the model, the other BAU held to the same
+   limits. Each region's kits and visits are shared between the three groups in proportion to their size. The
+   random 10% gives the data to grade and rebuild the next model (the two halves only compare the two ways of choosing).
+   It earns less than the model would; that is the price of clean data.
+2. *Length.* 3 months, analysed with the adjusted analysis (below). A longer pilot hardly helps.
+3. *Check after months 1 and 2.* Stop early only if the model is far worse than BAU: at these early checks
+   the 99.9% range (not the usual 95%) must lie entirely below zero, so that chance alone rarely stops a good
+   policy.
+4. *Decide at the end.* Switch to the model if the estimated difference is positive and the lower end of its range
+   is above a margin chosen in advance by the business, for example {{ margin | vnd }} VND per outlet-month;
+   otherwise keep BAU and keep collecting randomised data. The margin is a business decision: how much downside
+   risk is acceptable for a way of choosing the simulation expects to be better. With {{ margin | vnd }}, the rule switches
+   about {{ (10 * sw_g) | round | int }} times in 10 if the simulated gain is real, and about
+   {{ (10 * sw_0) | round | int }} times in 10 if the model is in fact no better than BAU.
+5. *Budget.* The model half spends about {{ (spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) | r3 | vnd }} VND more per outlet-month on actions than BAU,
+   about {{ ((spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) * side * 3) | mvnd }} million VND over the 3 months, mostly on promos; this needs approval
+   before the pilot starts.
+6. *Record for every outlet-month* the prediction, the action given, the group, and the orders. Without this the
+   next model cannot be graded.
+7. *Rebuild the model every quarter*, or sooner when costs, limits or the outlet base change.
+
+{{ need(11) }}
+**How large a gain can the pilot detect?**
+
+{{ table("pilot_power", cols=["months", "analysis", "mde_80_power"], rename={"months": "Months", "analysis": "Analysis", "mde_80_power": "Smallest difference"}, caption="Smallest true difference (VND per outlet-month) between the two halves that the pilot detects with 80% probability, by length and analysis. Raw: compares the two halves directly. Adjusted: compares outlets after accounting for their orders before the pilot.", source=False) }}
+
+The gain the simulation expects within the limits ({{ pgl.true_difference | vnd }} VND) is below every number in
+the table, because outlets differ so much from each other. At that gain a 3-month pilot with the adjusted analysis
+shows a clear difference only about {{ (100 * pw_g) | round | int }} times in 100 (about
+{{ (100 * pw_c) | round | int }} in 100 without the promo rule); a "no clear difference" result is therefore quite
+possible even if the model is better. The pilot is still worth running: the stop rule limits the risk of a large loss, the switch
+rule above does not require a clear difference, and it adds fresh randomised data under the new policy, which
+today's data lacks. The adjusted analysis halves the smallest detectable difference, so it should be the main
+analysis.
+
+**A larger lever: capacity.** The limits cost about {{ pbc.est_difference | r3 | vnd }} VND per outlet-month under the
+model without the promo rule (about {{ (best.est_gain - capg.est_gain) | r3 | vnd }} with it), about {{ (pbc.est_difference * N) | mvnd }} million VND per month across all outlets. This figure already
+nets the per-action cost of each extra kit and visit, but not fixed costs such as hiring and training reps or a
+larger kit stock and its logistics. It assumes about 3 times today's kits and 5 times today's visits; a smaller
+increase earns less. It is worth a separate business case.
+
+## 6. Risks and limitations
+
+* **Simulated data.** The method was graded where the truth is known. Real effects may be weaker or noisier.
+* **Promo effect.** The model's weakest point; partly limited for now by the brand share rule, whose value is not yet proven.
+* **No evidence where an action was never tried.** Display kits and rep visits were never given to modern trade
+  stores; the model does not use them there, and their effect there stays unknown until tested.
+* **Simple limits.** One limit per region and month. Real rep capacity depends on routes and travel time.
+* **One month at a time.** The analysis assumes an action affects only that month's orders. A display kit stays
+  in the outlet longer.
+* **Neighbouring outlets.** A promo in one outlet may take sales from the next one; this is not modelled.
+* **Fixed promo cost.** A real promotion costs more where more is ordered, which makes promos in large, loyal
+  outlets even less attractive.
+
+## 7. Questions business readers ask
+
+**Why not just compare outlets that got an action with outlets that did not?**
+Because the BAU rule chose who got what: it gave display kits to outlets with coolers and rep visits to large
+bars, which order differently anyway. The raw comparison says a display kit loses cases when it truly adds them.
+
+**Why not run a simple A/B test for each action?**
+An A/B test gives the average effect of an action. The decision here is per outlet: the same rep visit adds many
+cases in a busy bar with falling sales and few in a small grocery with steady sales.
+
+**Which outlets get a rep visit? A display kit?**
+Rep visits: bars and restaurants that order often, especially when their sales are falling. Display kits:
+groceries and minimarts with coolers.
+
+**Why does the model give so many promos when the limits apply?**
+Once the kits and visits are used up, the promo is the action with the highest predicted value left. The model
+overrates it where our brand share is high; hence the brand share rule.
+
+**Can we trust the estimated gains?**
+They are measured on outlets the model never saw, by a separate model. With shuffled actions the gain falls to
+at most about {{ n.placebo_null_max | r3 | vnd }} VND, against {{ n.placebo.actual_gain | r3 | vnd }} with the real ones. For the ways of
+choosing in this report the true values fall inside the ranges, but the model's estimates within the limits are
+{{ (capg.true_gain - capg.est_gain) | r3 | vnd }} to {{ (capp.true_gain - capp.est_gain) | r3 | vnd }} VND below the truth, and the technical report shows simpler rules (for example "rep visit for
+all") that are badly misjudged. The ranges are wide, which is why the report separates what is shown from what is not.
+
+**What does the pilot cost?**
+All three groups share today's limits, so the pilot needs no extra kits or visits. It does need more action
+budget: the model half spends about {{ (spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) | r3 | vnd }} VND
+more per outlet-month than BAU, mostly on promos ({{ capg["%_promo"] | f(0) }}% of its outlet-months against
+{{ baucap["%_promo"] | f(0) }}%), about {{ ((spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) * side) | mvnd }} million VND per month
+for about {{ side | vnd }} outlets, about {{ ((spend("model_capacity_promo_rule") | float - spend("bau_within_limits") | float) * side * 3) | mvnd }} million VND over the 3 months. The estimated gains are already net of this spending, but the budget needs approval.
+The random 10% earns less than the model would; this cost was not estimated. The other risk is a few months of a way of choosing that may be
+no better than BAU; the stop rule catches only a large loss, so a moderate loss could last the full 3 months.
+
+**Where are the details?**
+In the technical report (same numbers, full method, every check) and the analysis code (a Jupyter notebook).
+
+## 8. Words used in this report
+
+The terms below are used with these meanings throughout the report.
+
+| Word | Meaning |
+|--------------------|----------------------------------------------------------|
+| BAU | Business as usual: the current rule for choosing actions. |
+| BAU as written | The BAU rule without the limits; it hands out more kits and visits than the limits allow. |
+| BAU held to the limits | The BAU rule with its extra kits and visits removed at random down to the limits; the fair comparison for the model within the limits. |
+| Outlet-month | One outlet in one month; each gets one action. |
+| Gross margin | Margin on the extra cases: {{ n.value_per_outcome | vnd }} VND per case. |
+| Net value | Gross margin of the extra cases minus the cost of the action. |
+| Break-even | The number of extra cases at which an action exactly pays its cost. |
+| Promo rule | No price promo where our brand share is above 60%; outlets without a share estimate are not affected. |
+| Cost of the limits | How much more the model earns without the limits on kits and visits, net of their per-action cost but not of fixed costs (more reps, more kits in stock). |
+| Range (95%) | The 95% confidence interval: the values the data is consistent with. "Includes 0" means the data cannot rule out no difference. |
+| Clear | The whole range lies above zero (for a gain) or below zero (for a loss). |
+| True value | Known only because the data is simulated; a real project only has the estimate. |
+| Randomised pilot | A trial in which chance, not people, decides which outlets follow the model; the most reliable way to compare. |
+| Adjusted analysis | Compares the two halves after accounting for each outlet's orders before the pilot; removes much of the noise. |
+| 80% probability | If the true difference has this size, the pilot shows a clear result 8 times out of 10. |
+| Shuffled-actions test | Refit the model after shuffling who got which action; a real model should then find nothing. |
+| Brand share | Our brand's estimated share of the outlet's beer volume, from a survey. |
+| Modern trade | Supermarket and convenience chains. |

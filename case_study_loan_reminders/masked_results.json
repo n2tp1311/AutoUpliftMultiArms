@@ -1,0 +1,277 @@
+{
+ "_note": "Masked results of a real experiment. Effects are percentage points (pp) of on-time payment rate versus the version's control arm, rounded to 0.1 pp. Absolute rates, counts, dates, currency amounts and all internal names are removed. Arm, feature and product names are generic labels.",
+ "versions": {
+  "first_full": {
+   "label": "First instalment, full (4 arms)",
+   "control": "Early-Msg",
+   "learner": "S-learner",
+   "effects": {
+    "Early-Call": [
+     -0.4,
+     -0.6,
+     -0.1
+    ],
+    "Late-Call": [
+     0.3,
+     0.0,
+     0.5
+    ],
+    "Late-Msg": [
+     1.0,
+     0.7,
+     1.2
+    ]
+   },
+   "model_minus_best_arm": 0.0,
+   "candidates_tied": "14 of 20",
+   "calibration_slopes": {
+    "Early-Call": [
+     0.8,
+     -1.0,
+     2.6
+    ],
+    "Late-Call": [
+     0.7,
+     -0.4,
+     1.8
+    ],
+    "Late-Msg": [
+     -0.3,
+     -0.8,
+     0.3
+    ]
+   },
+   "importance_pct": {
+    "instalment amount": 28,
+    "app logins, 30 days": 20,
+    "age": 19,
+    "product": 16,
+    "time of day of app logins": 9,
+    "call-list flag": 8
+   },
+   "by_product": {
+    "Early-Call": [
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1
+    ],
+    "Late-Call": [
+     0.2,
+     0.3,
+     0.2,
+     0.3,
+     0.2,
+     0.1
+    ],
+    "Late-Msg": [
+     0.5,
+     0.9,
+     0.8,
+     0.9,
+     0.8,
+     1.0
+    ]
+   }
+  },
+  "first_reduced": {
+   "label": "First instalment, reduced (2 arms)",
+   "control": "Late-Call",
+   "learner": "DR-learner",
+   "effects": {
+    "Late-Msg": [
+     0.7,
+     0.5,
+     1.0
+    ]
+   },
+   "model_minus_best_arm": 0.0,
+   "candidates_tied": "18 of 20",
+   "calibration_slopes": {
+    "Late-Msg": [
+     0.1,
+     -0.5,
+     0.6
+    ]
+   },
+   "importance_pct": {
+    "instalment amount": 32,
+    "age": 30,
+    "product": 18,
+    "app logins, 30 days": 12,
+    "call-list flag": 8
+   },
+   "by_product": {
+    "Late-Msg": [
+     1.1,
+     0.9,
+     0.9,
+     0.8,
+     0.9,
+     0.9
+    ]
+   }
+  },
+  "later_full": {
+   "label": "Second instalment onward, full (5 arms)",
+   "control": "1T+Email",
+   "learner": "DR-learner",
+   "effects": {
+    "1T": [
+     -0.3,
+     -0.4,
+     -0.2
+    ],
+    "2T-Early+Email": [
+     1.3,
+     1.2,
+     1.4
+    ],
+    "2T-Early": [
+     1.3,
+     1.2,
+     1.4
+    ],
+    "2T-Late": [
+     1.4,
+     1.3,
+     1.6
+    ]
+   },
+   "model_minus_best_arm": -0.1,
+   "candidates_tied": "19 of 20",
+   "calibration_slopes": {
+    "1T": [
+     -0.1,
+     -1.3,
+     1.1
+    ],
+    "2T-Early+Email": [
+     0.6,
+     0.3,
+     0.8
+    ],
+    "2T-Early": [
+     0.6,
+     0.4,
+     0.7
+    ],
+    "2T-Late": [
+     0.8,
+     0.6,
+     1.0
+    ]
+   },
+   "importance_pct": {
+    "worst days late, 3 months": 20,
+    "amount paid, 3 months": 18,
+    "instalment amount": 16,
+    "age": 16,
+    "days late on previous instalment": 15,
+    "product": 9,
+    "call-list flag": 6
+   },
+   "by_product": {
+    "1T": [
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1,
+     -0.1
+    ],
+    "2T-Early+Email": [
+     1.4,
+     1.5,
+     1.4,
+     1.4,
+     1.4,
+     1.4
+    ],
+    "2T-Early": [
+     1.4,
+     1.8,
+     1.5,
+     1.6,
+     1.6,
+     1.4
+    ],
+    "2T-Late": [
+     1.5,
+     1.6,
+     1.5,
+     1.6,
+     1.6,
+     1.5
+    ]
+   }
+  },
+  "later_reduced": {
+   "label": "Second instalment onward, reduced (3 arms)",
+   "control": "2T-Early+Email",
+   "learner": "X-learner",
+   "effects": {
+    "2T-Early": [
+     0.0,
+     -0.1,
+     0.1
+    ],
+    "2T-Late": [
+     0.1,
+     0.0,
+     0.3
+    ]
+   },
+   "model_minus_best_arm": 0.0,
+   "candidates_tied": "15 of 20",
+   "calibration_slopes": {
+    "2T-Early": [
+     0.9,
+     0.6,
+     1.2
+    ],
+    "2T-Late": [
+     0.9,
+     0.5,
+     1.2
+    ]
+   },
+   "importance_pct": {
+    "instalment amount": 30,
+    "worst days late, 3 months": 25,
+    "amount paid, 3 months": 22,
+    "call-list flag": 12,
+    "age": 7,
+    "product": 5
+   },
+   "by_product": {
+    "2T-Early": [
+     0.0,
+     0.5,
+     0.0,
+     0.5,
+     0.0,
+     0.1
+    ],
+    "2T-Late": [
+     0.1,
+     0.5,
+     0.1,
+     0.5,
+     0.1,
+     0.2
+    ]
+   }
+  }
+ },
+ "products": [
+  "P1",
+  "P2",
+  "P3",
+  "P4",
+  "P5",
+  "P6"
+ ]
+}

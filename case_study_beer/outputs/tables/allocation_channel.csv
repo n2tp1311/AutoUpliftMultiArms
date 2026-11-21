@@ -1,0 +1,11 @@
+policy,channel,control,zalo_message,price_promo,display_kit,rep_visit
+best,modern_trade,30.1,12.2,57.7,0.0,0.0
+best,off_trade_grocery,0.0,0.6,40.1,38.3,21.0
+best,off_trade_minimart,0.1,0.4,29.7,42.9,26.9
+best,on_trade_bar,0.7,1.3,18.2,1.6,78.1
+best,on_trade_restaurant,0.7,0.8,26.0,1.6,70.9
+capacity,modern_trade,30.1,6.1,63.8,0.0,0.0
+capacity,off_trade_grocery,0.3,0.2,89.6,8.4,1.5
+capacity,off_trade_minimart,0.4,0.3,78.3,16.6,4.3
+capacity,on_trade_bar,3.9,2.2,75.6,0.9,17.4
+capacity,on_trade_restaurant,4.6,2.8,75.7,0.8,16.1

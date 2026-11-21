@@ -1,0 +1,30 @@
+column,type,meaning,unit,missing_%,example
+outlet_id,int,Outlet identifier.,id,0.0,1
+month,date,First day of the month.,date,0.0,2026-01-01
+region,category (5),"Region: North, Central, Highlands, South, Mekong.",,0.0,South
+province,category (20),Province code inside the region (20 levels).,,0.0,south_01
+channel,category (5),"Outlet type: bar, restaurant, grocery, minimart, modern trade.",,0.0,on_trade_restaurant
+outlet_size,category (3),small / medium / large.,,0.0,medium
+n_coolers,int,Coolers at the outlet.,count,0.0,0
+seating_capacity,float,"Seats; on-trade only, missing elsewhere.",seats,60.3,62.0
+vol_last_1m,float,Cases ordered last month.,cases,0.0,39.4
+vol_avg_3m,float,Mean cases ordered over the last 3 months.,cases,0.0,35.2
+vol_trend_3m,float,(last month - 3 months ago) / (vol_avg_3m + 1). Negative = falling.,ratio,0.0,0.16
+days_since_last_order,int,Days from the last order to the start of the month.,days,0.0,28
+order_frequency_3m,int,Orders over the last 3 months.,orders,0.0,7
+brand_share_est,float,Estimated share of our brand in the outlet's beer volume (noisy).,share 0-1,8.1,0.53
+competitor_promo_active,0/1,A competitor runs a promo at the outlet this month.,flag,0.0,0
+tet_month,0/1,Month of the lunar new year (Tet).,flag,0.0,0
+rainy_season,0/1,Rainy season in the outlet's region this month.,flag,0.0,0
+avg_temperature,float,Monthly mean temperature.,deg C,0.0,27.5
+distance_to_distributor_km,float,Distance to the serving distributor.,km,0.0,5.6
+credit_days,int,Payment terms.,days,0.0,7
+legacy_program_flag,0/1,Near-constant flag (planted for the feature filter).,flag,0.0,0
+vol_avg_3m_reported,float,Near-copy of vol_avg_3m (planted for the feature filter).,cases,0.0,35.4
+noise_feature,float,Pure noise (planted for the noise floor).,,0.0,0.9
+arm,int,Arm the outlet received this month (0-4).,code,0.0,1
+rule_arm,int,Arm the business-as-usual rule would give.,code,0.0,0
+in_trade_test,0/1,1 if the row was in the randomised trade test.,flag,0.0,1
+cases_ordered,float,OUTCOME: cases ordered this month (0 if no order).,cases,0.0,56.2
+reordered,0/1,1 if the outlet ordered this month (not used here).,flag,0.0,1
+month_index,int,"Months since January 2026 (0-5), added for the nuisance models.",months,0.0,0

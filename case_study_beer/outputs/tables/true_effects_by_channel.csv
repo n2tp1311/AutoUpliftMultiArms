@@ -1,0 +1,6 @@
+channel,rows,tau_zalo_message,tau_price_promo,tau_display_kit,tau_rep_visit,net_zalo_message,net_price_promo,net_display_kit,net_rep_visit
+modern_trade,12138,0.47,5.18,2.24,1.13,26100,190900,-265800,-82500
+off_trade_grocery,38532,0.42,2.86,6.12,3.81,23400,51600,-32800,78800
+off_trade_minimart,21738,0.44,3.47,8.88,4.83,24200,88200,133000,139600
+on_trade_bar,21630,0.45,3.72,0.41,9.19,24900,103000,-375400,401200
+on_trade_restaurant,25962,0.57,3.75,1.32,8.53,32500,104800,-321000,361700

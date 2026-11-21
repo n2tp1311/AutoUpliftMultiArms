@@ -1,0 +1,25 @@
+# Case study environment. Install from the case_study_beer folder, inside the repo's virtual environment:
+#   python3.9 -m venv ../.venv && source ../.venv/bin/activate
+#   pip install -r requirements.txt
+#
+# The modelling library is private and not part of this repository. Without it the notebook
+# cannot be re-executed; the data generator, its tests and the report build (from outputs/) still run.
+# On the owner's machine, install it first:  pip install -e ../library
+numpy==1.26.4
+pandas==2.2.2
+matplotlib==3.8.4
+
+# Notebook execution
+jupyter-core==5.7.2
+ipykernel==6.29.5
+nbformat==5.10.4
+nbclient==0.10.0
+nbconvert==7.16.4
+
+# Report build (Jinja2/Markdown templates -> pandoc -> LaTeX -> tectonic -> PDF) and page render check.
+# pandoc and tectonic are command-line tools, not pip packages (macOS: brew install pandoc tectonic).
+Jinja2==3.1.4
+pypdfium2==4.30.0
+
+# Tests of the data generator
+pytest==8.2.2

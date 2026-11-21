@@ -1,0 +1,20 @@
+feature,zalo_message vs control,price_promo vs control,display_kit vs control,rep_visit vs control,overall,ratio_to_floor,n_arms_above,drives,above_floor
+order_frequency_3m,0.1272,0.1258,3.6774,3.1523,7.0828,15.007,3,"price_promo vs control, display_kit vs control, rep_visit vs control",True
+vol_avg_3m,0.3491,0.1325,3.1098,2.747,6.3384,12.6905,4,"zalo_message vs control, price_promo vs control, display_kit vs control, rep_visit vs control",True
+channel,0.1373,0.0395,3.3313,2.7924,6.3005,13.5946,3,"price_promo vs control, display_kit vs control, rep_visit vs control",True
+n_coolers,0.1508,0.044,3.3077,0.2673,3.7698,13.4985,3,"zalo_message vs control, price_promo vs control, display_kit vs control",True
+vol_last_1m,0.1727,0.162,1.2052,1.0422,2.5821,7.8472,4,"zalo_message vs control, price_promo vs control, display_kit vs control, rep_visit vs control",True
+vol_trend_3m,0.0285,0.0,0.3501,1.9723,2.3509,7.9029,1,rep_visit vs control,True
+seating_capacity,0.2484,0.1201,0.616,1.1424,2.1269,5.8178,4,"zalo_message vs control, price_promo vs control, display_kit vs control, rep_visit vs control",True
+outlet_size,0.2239,0.0635,0.3879,0.7181,1.3934,3.0748,4,"zalo_message vs control, price_promo vs control, display_kit vs control, rep_visit vs control",True
+tet_month,0.0506,0.0782,0.5238,0.3954,1.0481,3.7897,3,"price_promo vs control, display_kit vs control, rep_visit vs control",True
+brand_share_est,0.0771,0.2416,0.3915,0.3366,1.0468,11.7033,2,"price_promo vs control, display_kit vs control",True
+distance_to_distributor_km,0.1265,0.0512,0.3873,0.3627,0.9277,2.4812,2,"price_promo vs control, display_kit vs control",True
+days_since_last_order,0.2407,0.0234,0.2857,0.3169,0.8667,2.4835,1,zalo_message vs control,True
+noise_feature,0.1195,0.0157,0.2473,0.4681,0.8506,1.8757,1,rep_visit vs control,True
+province,0.0747,0.0072,0.3492,0.3389,0.7699,1.4249,0,,False
+avg_temperature,0.133,0.0044,0.2247,0.2775,0.6395,1.3721,0,,False
+competitor_promo_active,0.0671,0.013,0.1042,0.1325,0.3168,0.6921,0,,False
+rainy_season,0.0814,0.0072,0.0783,0.1097,0.2766,0.8401,0,,False
+credit_days,0.0,0.0402,0.1069,0.0872,0.2343,1.9463,1,price_promo vs control,True
+month_index,0.0,0.0,0.0,0.0,0.0,0.0,0,,False

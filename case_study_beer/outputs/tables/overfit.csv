@@ -1,0 +1,14 @@
+metric,in_sample,out_of_fold,test,test_ci_low,test_ci_high,gap,reading
+policy_value,3056313.3476,2897824.1712,2849977.8935,2769481.8195,2958533.8443,206335.4541,
+gain_vs_best_single_arm,344061.727,178322.1378,164137.7485,98902.4528,219802.1947,179923.9786,out-of-fold agrees with test; test gain proven
+gain_vs_all_control,404815.3013,244191.188,251665.9548,178145.1353,318486.9337,153149.3465,out-of-fold agrees with test; test gain proven
+gain_vs_bau_rule,188656.4193,27217.9368,81630.7028,27310.5667,131341.0297,107025.7165,out-of-fold agrees with test; test gain proven
+calibration_slope: zalo_message,4.842,0.2065,0.554,-0.8172,1.8654,4.288,too noisy to judge on this many test rows (wide CI)
+effect_std: zalo_message,1.7333,2.777,1.7169,,,0.0164,
+calibration_slope: price_promo,6.0107,0.5919,2.2337,0.2736,4.1091,3.7769,too noisy to judge on this many test rows (wide CI)
+effect_std: price_promo,1.3929,2.2805,1.3345,,,0.0584,
+calibration_slope: display_kit,1.106,1.0103,1.0019,0.8668,1.1644,0.1041,consistent with 1: magnitudes about right
+effect_std: display_kit,38.5006,39.022,35.1938,,,3.3068,
+calibration_slope: rep_visit,1.1207,0.9847,0.9951,0.8476,1.168,0.1256,consistent with 1: magnitudes about right
+effect_std: rep_visit,35.3003,36.0263,32.1278,,,3.1725,
+outcome_r2,0.632,0.6085,0.6203,,,0.0117,in_sample and test: baseline + effect for treated rows; out_of_fold: the outcome models themselves

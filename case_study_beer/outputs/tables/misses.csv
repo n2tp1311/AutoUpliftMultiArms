@@ -1,0 +1,9 @@
+true_best,chosen,rows,mean_regret_vnd
+rep_visit,price_promo,3028,116600
+price_promo,rep_visit,1601,105900
+zalo_message,price_promo,1552,89800
+control,price_promo,1128,47500
+price_promo,control,751,165900
+display_kit,rep_visit,568,198200
+rep_visit,display_kit,458,421900
+price_promo,zalo_message,387,208800
