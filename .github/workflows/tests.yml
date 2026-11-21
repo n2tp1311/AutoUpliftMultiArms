@@ -6,7 +6,7 @@ on:
 
 jobs:
   data-generator:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Python 3.9 builds are not published for newer runner images
     strategy:
       fail-fast: false
       matrix:
