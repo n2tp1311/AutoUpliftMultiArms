@@ -106,6 +106,22 @@ td.n{text-align:right}
 .pill.keep{background:color-mix(in srgb,var(--pos) 15%,transparent);color:var(--pos)}
 .pill.maybe{background:var(--accent-soft);color:var(--accent)}
 table.prune td[rowspan]{font-weight:600;border-right:1px solid var(--rule)}
+.toplinks{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.toplinks .who{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.toplinks nav{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:500;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--rule);padding:6px 12px;border-radius:6px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.primary:hover{color:var(--surface);filter:brightness(1.1)}
+.ico{width:16px;height:16px;flex:none}
+a.case{cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+a.case:hover{border-color:var(--accent);box-shadow:0 6px 20px -10px color-mix(in srgb,var(--accent) 60%,transparent)}
+a.case:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.more{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;font-size:.92rem}
+.more .arr{transition:transform .15s}
+a.case:hover .more .arr{transform:translateX(4px)}
+@media (prefers-reduced-motion:reduce){a.case,.more .arr{transition:none}}
 .note{font-size:.88rem;color:var(--muted);border-left:2px solid var(--neg);padding-left:12px}
 
 /* lessons */
@@ -126,6 +142,13 @@ footer{padding-block:32px 0;border-top:1px solid var(--rule);color:var(--muted);
 
 <div class="wrap">
 <header class="hero">
+  <div class="toplinks">
+    <span class="who">AutoUpliftMultiArms</span>
+    <nav aria-label="Project links">
+      <a class="btn primary" href="https://github.com/n2tp1311/AutoUpliftMultiArms" target="_blank" rel="noopener"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>View on GitHub</a>
+      <a class="btn" href="https://www.linkedin.com/in/thanhphu1311" target="_blank" rel="noopener"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M0 1.15C0 .52.53 0 1.18 0h13.64C15.47 0 16 .52 16 1.15v13.7c0 .63-.53 1.15-1.18 1.15H1.18C.53 16 0 15.48 0 14.85V1.15zM4.75 13.4V6.17h-2.4v7.23h2.4zM3.55 5.18c.84 0 1.36-.56 1.36-1.25-.02-.71-.52-1.25-1.35-1.25-.82 0-1.36.54-1.36 1.25 0 .69.52 1.25 1.33 1.25h.02zm2.53 8.22h2.4V9.36c0-.21.02-.43.08-.58.17-.43.57-.88 1.23-.88.87 0 1.21.66 1.21 1.63v3.87h2.4V9.25c0-2.22-1.18-3.25-2.76-3.25-1.27 0-1.84.7-2.16 1.2v.02h-.02l.02-.02V6.17h-2.4c.03.68 0 7.23 0 7.23z"/></svg>LinkedIn</a>
+    </nav>
+  </div>
   <span class="eyebrow">aum · multi-arm uplift with cost and capacity</span>
   <h1>Which action, for which customer, within which limits?</h1>
   <p class="lede">aum estimates the effect of every possible action on every unit, turns those effects into one decision per unit under real costs and capacities, and then checks honestly whether the decisions beat simple rules. Two case studies show it at work. The beer study runs the whole library workflow end to end on simulated data, where the true answer is known. The loan reminder study uses it to explore real experiments: which treatment wins, in which segments, and which treatments can be dropped so the next pilot tests only real contenders.</p>
@@ -175,12 +198,14 @@ footer{padding-block:32px 0;border-top:1px solid var(--rule);color:var(--muted);
       <h3>Which trade action for which beer outlet?</h3>
       <p style="color:var(--muted)">Every step of the library on 20,000 outlets over 6 months: 5 actions with costs from 2,000 to 400,000 VND, regional caps on display kits and rep visits, and an answer key to check against.</p>
       <div class="facts"><div><b>69%</b><span>right action, model</span></div><div><b>33%</b><span>right action, current rule</span></div><div><b>5</b><span>arms incl. control</span></div></div>
+      <span class="more">Read the case study <span class="arr" aria-hidden="true">→</span></span>
     </a>
     <a class="case" href="#loans" style="text-decoration:none;color:inherit">
       <span class="tag real">Exploration · real experiments, masked</span>
       <h3>Payment reminders before the due date</h3>
       <p style="color:var(--muted)">Two randomized experiments at a consumer finance lender, 9 reminder plans in all. Which plan wins, for which segments, and which plans can leave the next pilot?</p>
       <div class="facts"><div><b>9 → 3</b><span>plans tested → kept for the pilot</span></div><div><b>+1.0 pp</b><span>best plan, first instalment</span></div><div><b>+1.4 pp</b><span>best plan, later instalments</span></div></div>
+      <span class="more">Read the case study <span class="arr" aria-hidden="true">→</span></span>
     </a>
   </div>
 </section>
@@ -274,7 +299,16 @@ footer{padding-block:32px 0;border-top:1px solid var(--rule);color:var(--muted);
 </section>
 
 <footer>
-  <p>The method is described in words, formulas and pseudocode in <code>method/README.md</code>. The implementation, a Python package, is private. The beer study publishes its data generator, an executed notebook and two PDF reports; the lending study publishes a masked report and the numbers behind its figures.</p>
+  <nav class="jump" aria-label="Documents">
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms" target="_blank" rel="noopener">GitHub repository ↗</a>
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms/blob/main/method/README.md" target="_blank" rel="noopener">Method note ↗</a>
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms/blob/main/case_study_beer/case_study_business.pdf" target="_blank" rel="noopener">Beer: business report ↗</a>
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms/blob/main/case_study_beer/case_study_technical.pdf" target="_blank" rel="noopener">Beer: technical report ↗</a>
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms/blob/main/case_study_beer/03_case_study_beer.ipynb" target="_blank" rel="noopener">Beer: notebook ↗</a>
+    <a href="https://github.com/n2tp1311/AutoUpliftMultiArms/blob/main/case_study_loan_reminders/case_study_loan_reminders.pdf" target="_blank" rel="noopener">Loan reminders: report ↗</a>
+    <a href="https://www.linkedin.com/in/thanhphu1311" target="_blank" rel="noopener">LinkedIn ↗</a>
+  </nav>
+  <p>The method is described in words, formulas and pseudocode in the method note. The implementation, a Python package, is private. The beer study publishes its data generator, an executed notebook and two PDF reports; the lending study publishes a masked report and the numbers behind its figures.</p>
   <p>All beer figures are synthetic. Lending figures are real experiment results, masked.</p>
 </footer>
 </div>
